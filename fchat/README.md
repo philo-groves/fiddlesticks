@@ -154,7 +154,14 @@ use ftooling::prelude::*;
 
 fn build_chat(provider: Arc<dyn fprovider::ModelProvider>) -> ChatService {
     let mut registry = ToolRegistry::new();
-    // registry.register(MyTool);
+    registry.register_sync_fn(
+        fprovider::ToolDefinition {
+            name: "echo".to_string(),
+            description: "Echo tool".to_string(),
+            input_schema: "{\"type\":\"string\"}".to_string(),
+        },
+        |args, _ctx| Ok(args),
+    );
 
     let runtime = Arc::new(DefaultToolRuntime::new(Arc::new(registry)));
     let store = Arc::new(InMemoryConversationStore::new());
