@@ -2,6 +2,7 @@ mod credentials;
 pub mod adapters;
 mod error;
 mod model;
+pub mod prelude;
 mod provider;
 mod registry;
 mod stream;

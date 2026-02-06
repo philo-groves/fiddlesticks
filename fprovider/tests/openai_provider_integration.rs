@@ -1,8 +1,6 @@
 #![cfg(feature = "provider-openai")]
 
-use std::future::Future;
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
 use fprovider::adapters::openai::{
     OpenAiAuth, OpenAiProvider, OpenAiRequest, OpenAiResponse, OpenAiStreamChunk,
@@ -51,8 +49,8 @@ impl OpenAiTransport for IntegrationFakeTransport {
     }
 }
 
-#[test]
-fn openai_provider_uses_openai_credentials_and_maps_completion() {
+#[tokio::test]
+async fn openai_provider_uses_openai_credentials_and_maps_completion() {
     let credentials = Arc::new(SecureCredentialManager::new());
     credentials
         .set_openai_api_key("sk-integration-123")
@@ -62,7 +60,7 @@ fn openai_provider_uses_openai_credentials_and_maps_completion() {
     let provider = OpenAiProvider::new(credentials, transport.clone());
 
     let request = ModelRequest::new("gpt-4o-mini", vec![Message::new(Role::User, "hello")]);
-    let response = block_on(provider.complete(request)).expect("complete should succeed");
+    let response = provider.complete(request).await.expect("complete should succeed");
 
     assert_eq!(response.provider, ProviderId::OpenAi);
     assert_eq!(response.model, "gpt-4o-mini");
@@ -76,34 +74,4 @@ fn openai_provider_uses_openai_credentials_and_maps_completion() {
         .expect("auth should be captured");
 
     assert_eq!(seen_auth, OpenAiAuth::ApiKey("sk-integration-123".to_string()));
-}
-
-fn block_on<F: Future>(future: F) -> F::Output {
-    let mut future = std::pin::pin!(future);
-    let waker = noop_waker();
-    let mut cx = Context::from_waker(&waker);
-
-    loop {
-        match future.as_mut().poll(&mut cx) {
-            Poll::Ready(value) => return value,
-            Poll::Pending => std::thread::yield_now(),
-        }
-    }
-}
-
-fn noop_waker() -> Waker {
-    unsafe fn clone(_: *const ()) -> RawWaker {
-        RawWaker::new(std::ptr::null(), &VTABLE)
-    }
-
-    unsafe fn wake(_: *const ()) {}
-
-    unsafe fn wake_by_ref(_: *const ()) {}
-
-    unsafe fn drop(_: *const ()) {}
-
-    static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
-
-    let raw_waker = RawWaker::new(std::ptr::null(), &VTABLE);
-    unsafe { Waker::from_raw(raw_waker) }
 }
