@@ -7,10 +7,11 @@ edition = "2024"
 fcommon = { path = "../fcommon" }
 fchat = { path = "../fchat" }
 fmemory = { path = "../fmemory" }
+fprovider = { path = "../fprovider" }
+ftooling = { path = "../ftooling" }
 futures-util = "0.3"
 
 [dev-dependencies]
-fprovider = { path = "../fprovider" }
 tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }
 
 [lib]

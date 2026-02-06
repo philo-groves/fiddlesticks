@@ -6,6 +6,7 @@ It currently supports:
 
 - Phase 2: initializer flow
 - Phase 3: coding agent incremental loop
+- Phase 4: runtime wiring + run-level policy
 
 `fharness` composes lower layers (`fmemory`, `fchat`, `ftooling`, `fprovider`) into a structured multi-run harness.
 
@@ -35,10 +36,13 @@ fchat = { path = "../fchat" }
 ## Core types
 
 - `Harness`: orchestrator for initializer and coding iterations
+- `HarnessBuilder`: runtime wiring for provider/chat/tooling/memory
 - `InitializerRequest` / `InitializerResult`
 - `CodingRunRequest` / `CodingRunResult`
+- `RuntimeRunRequest` / `RuntimeRunOutcome`
 - `HealthChecker` (`NoopHealthChecker` default)
 - `OutcomeValidator` (`AcceptAllValidator` default)
+- `FeatureSelector` (`FirstPendingFeatureSelector` default)
 - `HarnessError` / `HarnessErrorKind`
 
 ## Phase 2: Initializer flow
@@ -79,6 +83,44 @@ let _result = harness.run_initializer(request).await?;
    - marks feature passing only when validated
    - appends progress entry
    - records completed checkpoint with status/note
+
+## Phase 4: Integrated runtime and policy ownership
+
+`HarnessBuilder` wires lower-layer runtime dependencies directly:
+
+- provider (`fprovider`)
+- chat service (`fchat`) with transcript storage from `fmemory`
+- tool runtime (`ftooling`)
+- memory backend (`fmemory`)
+
+`fchat` stays responsible for turn orchestration. `fharness` owns run-level policy:
+
+- phase selection (`initializer` vs `coding`)
+- feature selection strategy (`FeatureSelector`)
+- validation gate before marking feature pass (`OutcomeValidator`)
+
+```rust
+use std::sync::Arc;
+
+use fharness::{Harness, RuntimeRunRequest, RuntimeRunOutcome};
+use fmemory::{InMemoryMemoryBackend, MemoryBackend};
+
+let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+let harness = Harness::builder(memory)
+    .provider(provider)
+    .tool_runtime(tool_runtime)
+    .build()?;
+
+match harness.run(RuntimeRunRequest::new(session, "run-1", "Build feature loop")).await? {
+    RuntimeRunOutcome::Initializer(_) => {
+        // session bootstrapped
+    }
+    RuntimeRunOutcome::Coding(result) => {
+        // one coding iteration completed
+        assert!(result.validated);
+    }
+}
+```
 
 ```rust
 use std::sync::Arc;

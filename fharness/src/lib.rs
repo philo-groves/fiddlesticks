@@ -6,12 +6,17 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use fchat::{ChatError, ChatEvent, ChatService, ChatSession, ChatTurnRequest, ChatTurnResult};
+use fchat::{
+    ChatError, ChatEvent, ChatPolicy, ChatService, ChatSession, ChatTurnRequest, ChatTurnResult,
+};
 use fcommon::{BoxFuture, SessionId};
 use fmemory::{
-    FeatureRecord, MemoryBackend, MemoryError, ProgressEntry, RunCheckpoint, RunStatus,
+    FeatureRecord, MemoryBackend, MemoryConversationStore, MemoryError, ProgressEntry,
+    RunCheckpoint, RunStatus,
     SessionManifest,
 };
+use fprovider::ModelProvider;
+use ftooling::ToolRuntime;
 use futures_util::StreamExt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,6 +185,81 @@ pub struct CodingRunResult {
     pub assistant_message: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HarnessPhase {
+    Initializer,
+    Coding,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeRunOutcome {
+    Initializer(InitializerResult),
+    Coding(CodingRunResult),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeRunRequest {
+    pub session: ChatSession,
+    pub run_id: String,
+    pub current_objective: String,
+    pub stream: bool,
+    pub prompt_override: Option<String>,
+    pub init_script: Option<String>,
+    pub feature_list: Vec<FeatureRecord>,
+    pub active_branch: String,
+    pub progress_summary: Option<String>,
+}
+
+impl RuntimeRunRequest {
+    pub fn new(
+        session: ChatSession,
+        run_id: impl Into<String>,
+        current_objective: impl Into<String>,
+    ) -> Self {
+        Self {
+            session,
+            run_id: run_id.into(),
+            current_objective: current_objective.into(),
+            stream: false,
+            prompt_override: None,
+            init_script: None,
+            feature_list: Vec::new(),
+            active_branch: "feature/initializer".to_string(),
+            progress_summary: None,
+        }
+    }
+
+    pub fn enable_streaming(mut self) -> Self {
+        self.stream = true;
+        self
+    }
+
+    pub fn with_prompt_override(mut self, prompt_override: impl Into<String>) -> Self {
+        self.prompt_override = Some(prompt_override.into());
+        self
+    }
+
+    pub fn with_init_script(mut self, init_script: impl Into<String>) -> Self {
+        self.init_script = Some(init_script.into());
+        self
+    }
+
+    pub fn with_feature_list(mut self, feature_list: Vec<FeatureRecord>) -> Self {
+        self.feature_list = feature_list;
+        self
+    }
+
+    pub fn with_active_branch(mut self, active_branch: impl Into<String>) -> Self {
+        self.active_branch = active_branch.into();
+        self
+    }
+
+    pub fn with_progress_summary(mut self, progress_summary: impl Into<String>) -> Self {
+        self.progress_summary = Some(progress_summary.into());
+        self
+    }
+}
+
 pub trait HealthChecker: Send + Sync {
     fn run<'a>(
         &'a self,
@@ -222,12 +302,121 @@ impl OutcomeValidator for AcceptAllValidator {
     }
 }
 
+pub trait FeatureSelector: Send + Sync {
+    fn select(&self, feature_list: &[FeatureRecord]) -> Option<FeatureRecord>;
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FirstPendingFeatureSelector;
+
+impl FeatureSelector for FirstPendingFeatureSelector {
+    fn select(&self, feature_list: &[FeatureRecord]) -> Option<FeatureRecord> {
+        feature_list.iter().find(|feature| !feature.passes).cloned()
+    }
+}
+
+pub struct HarnessBuilder {
+    memory: Arc<dyn MemoryBackend>,
+    provider: Option<Arc<dyn ModelProvider>>,
+    tool_runtime: Option<Arc<dyn ToolRuntime>>,
+    chat_policy: ChatPolicy,
+    health_checker: Arc<dyn HealthChecker>,
+    validator: Arc<dyn OutcomeValidator>,
+    feature_selector: Arc<dyn FeatureSelector>,
+    schema_version: u32,
+    harness_version: String,
+}
+
+impl HarnessBuilder {
+    pub fn new(memory: Arc<dyn MemoryBackend>) -> Self {
+        Self {
+            memory,
+            provider: None,
+            tool_runtime: None,
+            chat_policy: ChatPolicy::default(),
+            health_checker: Arc::new(NoopHealthChecker),
+            validator: Arc::new(AcceptAllValidator),
+            feature_selector: Arc::new(FirstPendingFeatureSelector),
+            schema_version: SessionManifest::DEFAULT_SCHEMA_VERSION,
+            harness_version: SessionManifest::DEFAULT_HARNESS_VERSION.to_string(),
+        }
+    }
+
+    pub fn provider(mut self, provider: Arc<dyn ModelProvider>) -> Self {
+        self.provider = Some(provider);
+        self
+    }
+
+    pub fn tool_runtime(mut self, tool_runtime: Arc<dyn ToolRuntime>) -> Self {
+        self.tool_runtime = Some(tool_runtime);
+        self
+    }
+
+    pub fn chat_policy(mut self, chat_policy: ChatPolicy) -> Self {
+        self.chat_policy = chat_policy;
+        self
+    }
+
+    pub fn health_checker(mut self, health_checker: Arc<dyn HealthChecker>) -> Self {
+        self.health_checker = health_checker;
+        self
+    }
+
+    pub fn validator(mut self, validator: Arc<dyn OutcomeValidator>) -> Self {
+        self.validator = validator;
+        self
+    }
+
+    pub fn feature_selector(mut self, feature_selector: Arc<dyn FeatureSelector>) -> Self {
+        self.feature_selector = feature_selector;
+        self
+    }
+
+    pub fn schema_version(mut self, schema_version: u32) -> Self {
+        self.schema_version = schema_version;
+        self
+    }
+
+    pub fn harness_version(mut self, harness_version: impl Into<String>) -> Self {
+        self.harness_version = harness_version.into();
+        self
+    }
+
+    pub fn build(self) -> Result<Harness, HarnessError> {
+        let provider = self.provider.ok_or_else(|| {
+            HarnessError::not_ready("provider is required to build chat runtime")
+        })?;
+
+        let store = Arc::new(MemoryConversationStore::new(self.memory.clone()));
+        let mut chat_builder = ChatService::builder(provider)
+            .store(store)
+            .policy(self.chat_policy);
+
+        if let Some(tool_runtime) = self.tool_runtime {
+            chat_builder = chat_builder.tool_runtime(tool_runtime);
+        }
+
+        let chat = Arc::new(chat_builder.build());
+
+        Ok(Harness {
+            memory: self.memory,
+            chat: Some(chat),
+            health_checker: self.health_checker,
+            validator: self.validator,
+            feature_selector: self.feature_selector,
+            schema_version: self.schema_version,
+            harness_version: self.harness_version,
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct Harness {
     memory: Arc<dyn MemoryBackend>,
     chat: Option<Arc<ChatService>>,
     health_checker: Arc<dyn HealthChecker>,
     validator: Arc<dyn OutcomeValidator>,
+    feature_selector: Arc<dyn FeatureSelector>,
     schema_version: u32,
     harness_version: String,
 }
@@ -242,9 +431,14 @@ impl Harness {
             chat: None,
             health_checker: Arc::new(NoopHealthChecker),
             validator: Arc::new(AcceptAllValidator),
+            feature_selector: Arc::new(FirstPendingFeatureSelector),
             schema_version: SessionManifest::DEFAULT_SCHEMA_VERSION,
             harness_version: SessionManifest::DEFAULT_HARNESS_VERSION.to_string(),
         }
+    }
+
+    pub fn builder(memory: Arc<dyn MemoryBackend>) -> HarnessBuilder {
+        HarnessBuilder::new(memory)
     }
 
     pub fn with_chat(mut self, chat: Arc<ChatService>) -> Self {
@@ -262,6 +456,11 @@ impl Harness {
         self
     }
 
+    pub fn with_feature_selector(mut self, feature_selector: Arc<dyn FeatureSelector>) -> Self {
+        self.feature_selector = feature_selector;
+        self
+    }
+
     pub fn with_schema_version(mut self, schema_version: u32) -> Self {
         self.schema_version = schema_version;
         self
@@ -270,6 +469,58 @@ impl Harness {
     pub fn with_harness_version(mut self, harness_version: impl Into<String>) -> Self {
         self.harness_version = harness_version.into();
         self
+    }
+
+    pub async fn select_phase(&self, session_id: &SessionId) -> Result<HarnessPhase, HarnessError> {
+        if self.memory.is_initialized(session_id).await? {
+            Ok(HarnessPhase::Coding)
+        } else {
+            Ok(HarnessPhase::Initializer)
+        }
+    }
+
+    pub async fn run(&self, request: RuntimeRunRequest) -> Result<RuntimeRunOutcome, HarnessError> {
+        let phase = self.select_phase(&request.session.id).await?;
+        match phase {
+            HarnessPhase::Initializer => {
+                let mut initializer = InitializerRequest::new(
+                    request.session.id.clone(),
+                    request.run_id.clone(),
+                    request.current_objective,
+                )
+                .with_active_branch(request.active_branch);
+
+                if let Some(init_script) = request.init_script {
+                    initializer = initializer.with_init_script(init_script);
+                }
+
+                if !request.feature_list.is_empty() {
+                    initializer = initializer.with_feature_list(request.feature_list);
+                }
+
+                if let Some(progress_summary) = request.progress_summary {
+                    initializer = initializer.with_progress_summary(progress_summary);
+                }
+
+                self.run_initializer(initializer)
+                    .await
+                    .map(RuntimeRunOutcome::Initializer)
+            }
+            HarnessPhase::Coding => {
+                let mut coding = CodingRunRequest::new(request.session, request.run_id);
+                if request.stream {
+                    coding = coding.enable_streaming();
+                }
+
+                if let Some(prompt_override) = request.prompt_override {
+                    coding = coding.with_prompt_override(prompt_override);
+                }
+
+                self.run_coding_iteration(coding)
+                    .await
+                    .map(RuntimeRunOutcome::Coding)
+            }
+        }
     }
 
     pub async fn run_initializer(
@@ -482,7 +733,7 @@ impl Harness {
             .unwrap_or(Self::DEFAULT_INIT_SCRIPT);
         self.health_checker.run(&request.session.id, init_script).await?;
 
-        let feature = bootstrap.feature_list.iter().find(|feature| !feature.passes).cloned();
+        let feature = self.feature_selector.select(&bootstrap.feature_list);
 
         let Some(feature) = feature else {
             return Ok(CodingRunResult {
@@ -653,8 +904,10 @@ mod tests {
     use fmemory::InMemoryMemoryBackend;
     use fprovider::{
         Message, ModelProvider, ModelRequest, ModelResponse, OutputItem, ProviderFuture,
-        ProviderId, StopReason, StreamEvent, TokenUsage, VecEventStream,
+        ProviderId, StopReason, StreamEvent, TokenUsage, ToolCall,
+        VecEventStream,
     };
+    use ftooling::{ToolError, ToolExecutionContext, ToolExecutionResult, ToolFuture, ToolRuntime};
 
     use super::*;
 
@@ -705,6 +958,163 @@ mod tests {
                 ]);
                 Ok(Box::pin(stream) as fprovider::BoxedEventStream<'a>)
             })
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct RecordingProvider {
+        requests: Mutex<Vec<ModelRequest>>,
+    }
+
+    impl RecordingProvider {
+        fn latest_request(&self) -> ModelRequest {
+            self.requests
+                .lock()
+                .expect("requests lock")
+                .last()
+                .cloned()
+                .expect("at least one request")
+        }
+    }
+
+    impl ModelProvider for RecordingProvider {
+        fn id(&self) -> ProviderId {
+            ProviderId::OpenAi
+        }
+
+        fn complete<'a>(
+            &'a self,
+            request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<ModelResponse, fprovider::ProviderError>> {
+            Box::pin(async move {
+                self.requests
+                    .lock()
+                    .expect("requests lock")
+                    .push(request.clone());
+                Ok(ModelResponse {
+                    provider: ProviderId::OpenAi,
+                    model: request.model,
+                    output: vec![OutputItem::Message(Message::new(
+                        fprovider::Role::Assistant,
+                        "recorded",
+                    ))],
+                    stop_reason: StopReason::EndTurn,
+                    usage: TokenUsage::default(),
+                })
+            })
+        }
+
+        fn stream<'a>(
+            &'a self,
+            request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+            Box::pin(async move {
+                self.requests
+                    .lock()
+                    .expect("requests lock")
+                    .push(request.clone());
+                let response = ModelResponse {
+                    provider: ProviderId::OpenAi,
+                    model: request.model,
+                    output: vec![OutputItem::Message(Message::new(
+                        fprovider::Role::Assistant,
+                        "recorded-stream",
+                    ))],
+                    stop_reason: StopReason::EndTurn,
+                    usage: TokenUsage::default(),
+                };
+                let stream = VecEventStream::new(vec![Ok(StreamEvent::ResponseComplete(response))]);
+                Ok(Box::pin(stream) as fprovider::BoxedEventStream<'a>)
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    struct ToolLoopProvider;
+
+    impl ModelProvider for ToolLoopProvider {
+        fn id(&self) -> ProviderId {
+            ProviderId::OpenAi
+        }
+
+        fn complete<'a>(
+            &'a self,
+            request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<ModelResponse, fprovider::ProviderError>> {
+            Box::pin(async move {
+                if request.tool_results.is_empty() {
+                    Ok(ModelResponse {
+                        provider: ProviderId::OpenAi,
+                        model: request.model,
+                        output: vec![OutputItem::ToolCall(ToolCall {
+                            id: "call_tool_1".to_string(),
+                            name: "echo".to_string(),
+                            arguments: "{}".to_string(),
+                        })],
+                        stop_reason: StopReason::EndTurn,
+                        usage: TokenUsage::default(),
+                    })
+                } else {
+                    Ok(ModelResponse {
+                        provider: ProviderId::OpenAi,
+                        model: request.model,
+                        output: vec![OutputItem::Message(Message::new(
+                            fprovider::Role::Assistant,
+                            "tool-complete",
+                        ))],
+                        stop_reason: StopReason::EndTurn,
+                        usage: TokenUsage::default(),
+                    })
+                }
+            })
+        }
+
+        fn stream<'a>(
+            &'a self,
+            request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+            Box::pin(async move {
+                let response = ModelResponse {
+                    provider: ProviderId::OpenAi,
+                    model: request.model,
+                    output: vec![OutputItem::Message(Message::new(
+                        fprovider::Role::Assistant,
+                        "tool-complete",
+                    ))],
+                    stop_reason: StopReason::EndTurn,
+                    usage: TokenUsage::default(),
+                };
+
+                let stream = VecEventStream::new(vec![Ok(StreamEvent::ResponseComplete(response))]);
+                Ok(Box::pin(stream) as fprovider::BoxedEventStream<'a>)
+            })
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct EchoToolRuntime;
+
+    impl ToolRuntime for EchoToolRuntime {
+        fn execute<'a>(
+            &'a self,
+            tool_call: ToolCall,
+            _context: ToolExecutionContext,
+        ) -> ToolFuture<'a, Result<ToolExecutionResult, ToolError>> {
+            Box::pin(async move {
+                Ok(ToolExecutionResult {
+                    tool_call_id: tool_call.id,
+                    output: "ok".to_string(),
+                })
+            })
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct LastPendingFeatureSelector;
+
+    impl FeatureSelector for LastPendingFeatureSelector {
+        fn select(&self, feature_list: &[FeatureRecord]) -> Option<FeatureRecord> {
+            feature_list.iter().rev().find(|feature| !feature.passes).cloned()
         }
     }
 
@@ -1004,5 +1414,223 @@ mod tests {
             .await
             .expect("state should load");
         assert!(!state.feature_list[0].passes);
+    }
+
+    #[tokio::test]
+    async fn builder_wires_provider_tooling_memory_and_chat() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = Harness::builder(memory.clone())
+            .provider(Arc::new(ToolLoopProvider))
+            .tool_runtime(Arc::new(EchoToolRuntime))
+            .build()
+            .expect("builder should wire runtime");
+
+        initialize_for_tests(&harness, "session-builder").await;
+
+        let session = ChatSession::new("session-builder", ProviderId::OpenAi, "gpt-4o-mini");
+        let result = harness
+            .run_coding_iteration(CodingRunRequest::new(session, "run-builder-1"))
+            .await
+            .expect("coding run should succeed");
+
+        assert_eq!(result.assistant_message.as_deref(), Some("tool-complete"));
+
+        let transcript = memory
+            .load_transcript_messages(&SessionId::from("session-builder"))
+            .await
+            .expect("transcript should load");
+        assert_eq!(transcript.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn runtime_run_selects_initializer_then_coding_phase() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = Harness::builder(memory.clone())
+            .provider(Arc::new(FakeProvider))
+            .build()
+            .expect("builder should succeed");
+
+        let session = ChatSession::new("session-runtime", ProviderId::OpenAi, "gpt-4o-mini");
+        let request = RuntimeRunRequest::new(session.clone(), "run-auto-1", "phase selector objective")
+            .with_feature_list(vec![FeatureRecord {
+                id: "feature-1".to_string(),
+                category: "functional".to_string(),
+                description: "phase selection".to_string(),
+                steps: vec!["initialize then code".to_string()],
+                passes: false,
+            }]);
+
+        let first = harness.run(request).await.expect("first phase should run");
+        assert!(matches!(first, RuntimeRunOutcome::Initializer(_)));
+
+        let second = harness
+            .run(RuntimeRunRequest::new(
+                session,
+                "run-auto-2",
+                "phase selector objective",
+            ))
+            .await
+            .expect("second phase should run");
+
+        assert!(matches!(second, RuntimeRunOutcome::Coding(_)));
+    }
+
+    #[tokio::test]
+    async fn coding_iteration_uses_feature_selection_strategy() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = build_harness(memory.clone(), None, None)
+            .with_feature_selector(Arc::new(LastPendingFeatureSelector));
+
+        harness
+            .run_initializer(
+                InitializerRequest::new("session-selector", "run-init", "feature strategy")
+                    .with_feature_list(vec![
+                        FeatureRecord {
+                            id: "feature-a".to_string(),
+                            category: "functional".to_string(),
+                            description: "first pending".to_string(),
+                            steps: vec!["do first".to_string()],
+                            passes: false,
+                        },
+                        FeatureRecord {
+                            id: "feature-b".to_string(),
+                            category: "functional".to_string(),
+                            description: "second pending".to_string(),
+                            steps: vec!["do second".to_string()],
+                            passes: false,
+                        },
+                    ]),
+            )
+            .await
+            .expect("initializer should succeed");
+
+        let session = ChatSession::new("session-selector", ProviderId::OpenAi, "gpt-4o-mini");
+        let result = harness
+            .run_coding_iteration(CodingRunRequest::new(session, "run-selector-1"))
+            .await
+            .expect("coding run should succeed");
+
+        assert_eq!(result.selected_feature_id.as_deref(), Some("feature-b"));
+    }
+
+    #[tokio::test]
+    async fn builder_requires_provider_to_build_runtime() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let error = Harness::builder(memory).build().err().expect("provider should be required");
+
+        assert_eq!(error.kind, HarnessErrorKind::NotReady);
+    }
+
+    #[tokio::test]
+    async fn select_phase_tracks_session_initialization_state() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = Harness::builder(memory.clone())
+            .provider(Arc::new(FakeProvider))
+            .build()
+            .expect("builder should succeed");
+
+        let phase_before = harness
+            .select_phase(&SessionId::from("session-phase"))
+            .await
+            .expect("phase should resolve");
+        assert_eq!(phase_before, HarnessPhase::Initializer);
+
+        harness
+            .run_initializer(InitializerRequest::new(
+                "session-phase",
+                "run-init",
+                "phase objective",
+            ))
+            .await
+            .expect("initializer should succeed");
+
+        let phase_after = harness
+            .select_phase(&SessionId::from("session-phase"))
+            .await
+            .expect("phase should resolve");
+        assert_eq!(phase_after, HarnessPhase::Coding);
+    }
+
+    #[tokio::test]
+    async fn runtime_run_initializer_applies_initializer_fields() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = Harness::builder(memory.clone())
+            .provider(Arc::new(FakeProvider))
+            .build()
+            .expect("builder should succeed");
+
+        let session = ChatSession::new("session-init-fields", ProviderId::OpenAi, "gpt-4o-mini");
+        let outcome = harness
+            .run(
+                RuntimeRunRequest::new(session, "run-init-fields", "objective")
+                    .with_active_branch("feature/custom")
+                    .with_init_script("#!/usr/bin/env bash\necho init")
+                    .with_progress_summary("custom summary")
+                    .with_feature_list(vec![FeatureRecord {
+                        id: "feature-custom".to_string(),
+                        category: "functional".to_string(),
+                        description: "custom feature".to_string(),
+                        steps: vec!["step".to_string()],
+                        passes: false,
+                    }]),
+            )
+            .await
+            .expect("runtime run should initialize");
+
+        assert!(matches!(outcome, RuntimeRunOutcome::Initializer(_)));
+
+        let state = memory
+            .load_bootstrap_state(&SessionId::from("session-init-fields"))
+            .await
+            .expect("state should load");
+        let manifest = state.manifest.expect("manifest should exist");
+        assert_eq!(manifest.active_branch, "feature/custom");
+        assert_eq!(manifest.init_script.as_deref(), Some("#!/usr/bin/env bash\necho init"));
+        assert!(state
+            .recent_progress
+            .iter()
+            .any(|entry| entry.summary == "custom summary"));
+    }
+
+    #[tokio::test]
+    async fn runtime_run_forwards_prompt_override_and_streaming() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let provider = Arc::new(RecordingProvider::default());
+        let harness = Harness::builder(memory.clone())
+            .provider(provider.clone())
+            .build()
+            .expect("builder should succeed");
+
+        harness
+            .run_initializer(
+                InitializerRequest::new("session-runtime-prompt", "run-init", "objective")
+                    .with_feature_list(vec![FeatureRecord {
+                        id: "feature-1".to_string(),
+                        category: "functional".to_string(),
+                        description: "check prompt override".to_string(),
+                        steps: vec!["override prompt".to_string()],
+                        passes: false,
+                    }]),
+            )
+            .await
+            .expect("initializer should succeed");
+
+        let session = ChatSession::new("session-runtime-prompt", ProviderId::OpenAi, "gpt-4o-mini");
+        let outcome = harness
+            .run(
+                RuntimeRunRequest::new(session, "run-code", "objective")
+                    .with_prompt_override("explicit prompt")
+                    .enable_streaming(),
+            )
+            .await
+            .expect("runtime run should code");
+
+        assert!(matches!(outcome, RuntimeRunOutcome::Coding(_)));
+
+        let request = provider.latest_request();
+        assert!(request.stream);
+        let last_message = request.messages.last().expect("user message should exist");
+        assert_eq!(last_message.role, fprovider::Role::User);
+        assert_eq!(last_message.content, "explicit prompt");
     }
 }
