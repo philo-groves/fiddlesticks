@@ -1,11 +1,9 @@
 //! Chat service slices for non-streaming and streaming turn orchestration.
 
-use std::collections::{BTreeMap, VecDeque};
-use std::pin::Pin;
+use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
-use futures_core::Stream;
+use async_stream::try_stream;
 use futures_util::StreamExt;
 use fprovider::{
     Message, ModelProvider, ModelRequest, OutputItem, Role, StopReason, StreamEvent, ToolCall,
@@ -14,8 +12,8 @@ use fprovider::{
 use ftooling::{ToolExecutionContext, ToolRuntime};
 
 use crate::{
-    ChatError, ChatEvent, ChatEventStream, ChatTurnRequest, ChatTurnResult, ConversationStore,
-    InMemoryConversationStore,
+    ChatError, ChatErrorPhase, ChatEvent, ChatEventStream, ChatTurnRequest, ChatTurnResult,
+    ConversationStore, InMemoryConversationStore,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -155,7 +153,8 @@ impl ChatService {
                 false,
                 Vec::new(),
             )?)
-            .await?;
+            .await
+            .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
 
         let mut round_trips = 0;
         loop {
@@ -172,7 +171,8 @@ impl ChatService {
             if !should_run_tools {
                 self.store
                     .append_messages(&session.id, persisted_messages)
-                    .await?;
+                    .await
+                    .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Storage))?;
 
                 return Ok(ChatTurnResult {
                     session_id: session.id,
@@ -188,7 +188,8 @@ impl ChatService {
             for tool_call in tool_calls {
                 let result = runtime
                     .execute(tool_call, ToolExecutionContext::new(session.id.clone()))
-                    .await?;
+                    .await
+                    .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Tooling))?;
                 tool_results.push(ToolResult {
                     tool_call_id: result.tool_call_id,
                     output: result.output,
@@ -206,7 +207,8 @@ impl ChatService {
                     false,
                     tool_results,
                 )?)
-                .await?;
+                .await
+                .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
         }
     }
 
@@ -232,69 +234,74 @@ impl ChatService {
                 true,
                 Vec::new(),
             )?)
-            .await?;
+            .await
+            .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
 
-        let mut events = Vec::new();
-        let mut assistant_text = String::new();
-        let mut tool_calls = BTreeMap::<String, ToolCall>::new();
-        let mut final_result = None::<ChatTurnResult>;
+        let store = Arc::clone(&self.store);
+        let stream = try_stream! {
+            let mut assistant_text = String::new();
+            let mut tool_calls = BTreeMap::<String, ToolCall>::new();
+            let mut final_result = None::<ChatTurnResult>;
 
-        while let Some(event) = provider_stream.next().await {
-            let event = event.map_err(ChatError::from)?;
-            match event {
-                StreamEvent::TextDelta(delta) => {
-                    assistant_text.push_str(&delta);
-                    events.push(Ok(ChatEvent::TextDelta(delta)));
-                }
-                StreamEvent::ToolCallDelta(tool_call) => {
-                    tool_calls.insert(tool_call.id.clone(), tool_call.clone());
-                    events.push(Ok(ChatEvent::ToolCallDelta(tool_call)));
-                }
-                StreamEvent::MessageComplete(message) => {
-                    if message.role == Role::Assistant && assistant_text.is_empty() {
-                        assistant_text = message.content.clone();
+            while let Some(event) = provider_stream.next().await {
+                let event = event.map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Streaming))?;
+                match event {
+                    StreamEvent::TextDelta(delta) => {
+                        assistant_text.push_str(&delta);
+                        yield ChatEvent::TextDelta(delta);
                     }
-
-                    if message.role == Role::Assistant {
-                        events.push(Ok(ChatEvent::AssistantMessageComplete(message.content)));
+                    StreamEvent::ToolCallDelta(tool_call) => {
+                        tool_calls.insert(tool_call.id.clone(), tool_call.clone());
+                        yield ChatEvent::ToolCallDelta(tool_call);
                     }
-                }
-                StreamEvent::ResponseComplete(response) => {
-                    let (content, output_tool_calls) = collect_output(response.output);
-                    if !content.is_empty() {
-                        assistant_text = content;
-                    }
+                    StreamEvent::MessageComplete(message) => {
+                        if message.role == Role::Assistant && assistant_text.is_empty() {
+                            assistant_text = message.content.clone();
+                        }
 
-                    for tool_call in output_tool_calls {
-                        tool_calls.insert(tool_call.id.clone(), tool_call);
+                        if message.role == Role::Assistant {
+                            yield ChatEvent::AssistantMessageComplete(message.content);
+                        }
                     }
+                    StreamEvent::ResponseComplete(response) => {
+                        let (content, output_tool_calls) = collect_output(response.output);
+                        if !content.is_empty() {
+                            assistant_text = content;
+                        }
 
-                    final_result = Some(ChatTurnResult {
-                        session_id: session.id.clone(),
-                        assistant_message: assistant_text.clone(),
-                        tool_calls: tool_calls.values().cloned().collect(),
-                        stop_reason: response.stop_reason,
-                        usage: response.usage,
-                    });
+                        for tool_call in output_tool_calls {
+                            tool_calls.insert(tool_call.id.clone(), tool_call);
+                        }
+
+                        final_result = Some(ChatTurnResult {
+                            session_id: session.id.clone(),
+                            assistant_message: assistant_text.clone(),
+                            tool_calls: tool_calls.values().cloned().collect(),
+                            stop_reason: response.stop_reason,
+                            usage: response.usage,
+                        });
+                    }
                 }
             }
-        }
 
-        let turn_result = final_result.unwrap_or(ChatTurnResult {
-            session_id: session.id.clone(),
-            assistant_message: assistant_text.clone(),
-            tool_calls: tool_calls.values().cloned().collect(),
-            stop_reason: StopReason::Other,
-            usage: TokenUsage::default(),
-        });
+            let turn_result = final_result.unwrap_or(ChatTurnResult {
+                session_id: session.id.clone(),
+                assistant_message: assistant_text.clone(),
+                tool_calls: tool_calls.values().cloned().collect(),
+                stop_reason: StopReason::Other,
+                usage: TokenUsage::default(),
+            });
 
-        let assistant = Message::new(Role::Assistant, turn_result.assistant_message.clone());
-        self.store
-            .append_messages(&session.id, vec![user_message, assistant])
-            .await?;
+            let assistant = Message::new(Role::Assistant, turn_result.assistant_message.clone());
+            store
+                .append_messages(&session.id, vec![user_message, assistant])
+                .await
+                .map_err(|err| err.with_phase(ChatErrorPhase::Storage))?;
 
-        events.push(Ok(ChatEvent::TurnComplete(turn_result)));
-        Ok(Box::pin(BufferedChatEventStream::new(events)))
+            yield ChatEvent::TurnComplete(turn_result);
+        };
+
+        Ok(Box::pin(stream))
     }
 
     async fn prepare_turn(&self, request: ChatTurnRequest) -> Result<TurnContext, ChatError> {
@@ -313,7 +320,11 @@ impl ChatService {
         let temperature = temperature.or(self.policy.default_temperature);
         let max_tokens = max_tokens.or(self.policy.default_max_tokens);
 
-        let prior = self.store.load_messages(&session.id).await?;
+        let prior = self
+            .store
+            .load_messages(&session.id)
+            .await
+            .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Storage))?;
         let user_message = Message::new(Role::User, user_input);
 
         let mut conversation_messages = Vec::new();
@@ -368,7 +379,9 @@ fn build_request(
         builder = builder.tool_results(tool_results);
     }
 
-    builder.build().map_err(ChatError::from)
+    builder
+        .build()
+        .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::RequestValidation))
 }
 
 fn collect_output(items: Vec<OutputItem>) -> (String, Vec<ToolCall>) {
@@ -387,27 +400,6 @@ fn collect_output(items: Vec<OutputItem>) -> (String, Vec<ToolCall>) {
     }
 
     (text, tool_calls)
-}
-
-#[derive(Debug)]
-struct BufferedChatEventStream {
-    events: VecDeque<Result<ChatEvent, ChatError>>,
-}
-
-impl BufferedChatEventStream {
-    fn new(events: Vec<Result<ChatEvent, ChatError>>) -> Self {
-        Self {
-            events: events.into(),
-        }
-    }
-}
-
-impl Stream for BufferedChatEventStream {
-    type Item = Result<ChatEvent, ChatError>;
-
-    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Poll::Ready(self.events.pop_front())
-    }
 }
 
 #[cfg(test)]

@@ -24,7 +24,7 @@ It can also integrate with `ftooling` for provider tool-call execution loops.
 The implementation currently supports:
 
 - Non-streaming turn execution via `ChatService::run_turn(...)`
-- Buffered streaming turn execution via `ChatService::stream_turn(...)`
+- Live streaming turn execution via `ChatService::stream_turn(...)`
 - Session-level system prompt injection
 - In-memory transcript storage implementation for local use/tests
 - Optional tool-call execution loop via `ftooling::ToolRuntime`
@@ -139,7 +139,7 @@ Current streaming semantics:
 
 - `stream_turn` maps provider stream events into chat-layer events.
 - Transcript persistence still occurs before `TurnComplete` is emitted.
-- Events are currently buffered internally before being exposed to callers.
+- Events are forwarded as they arrive from the provider stream.
 
 ## Tool loop usage (`ftooling` integration)
 
@@ -199,3 +199,11 @@ Tool loop semantics:
 - `Tooling`
 
 Provider errors from `fprovider` are mapped into `ChatErrorKind::Provider`.
+Tool errors from `ftooling` are mapped into `ChatErrorKind::Tooling`.
+
+`ChatError` also exposes:
+
+- `retryable`: normalized retry hint for higher layers
+- `phase`: where the failure occurred (`Provider`, `Tooling`, `Storage`, `Streaming`, etc.)
+- `source`: source error kind (`ProviderErrorKind` or `ToolErrorKind`)
+- helper methods: `is_retryable()` and `is_user_error()`

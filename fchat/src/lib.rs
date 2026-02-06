@@ -7,8 +7,9 @@ mod types;
 
 pub mod prelude {
     pub use crate::{
-        ChatError, ChatErrorKind, ChatEvent, ChatEventStream, ChatService, ChatSession,
-        ChatPolicy, ChatServiceBuilder, ChatTurnOptions, ChatTurnRequest, ChatTurnResult,
+        ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource, ChatEvent, ChatEventStream,
+        ChatPolicy, ChatService, ChatServiceBuilder, ChatSession, ChatTurnOptions,
+        ChatTurnRequest, ChatTurnResult,
         ConversationStore, InMemoryConversationStore,
     };
     pub use ftooling::{
@@ -17,7 +18,7 @@ pub mod prelude {
     };
 }
 
-pub use error::{ChatError, ChatErrorKind};
+pub use error::{ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource};
 pub use service::{ChatPolicy, ChatService, ChatServiceBuilder};
 pub use store::{ConversationStore, InMemoryConversationStore};
 pub use types::{

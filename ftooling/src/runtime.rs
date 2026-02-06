@@ -74,8 +74,12 @@ impl ToolRuntime for DefaultToolRuntime {
             self.hooks.on_execution_start(&tool_call, &context);
 
             let tool = self.registry.get(&tool_call.name).ok_or_else(|| {
-                let error =
-                    ToolError::not_found(format!("tool '{}' is not registered", tool_call.name));
+                let error = ToolError::not_found(format!(
+                    "tool '{}' is not registered",
+                    tool_call.name
+                ))
+                .with_tool_name(tool_call.name.clone())
+                .with_tool_call_id(tool_call.id.clone());
                 self.hooks
                     .on_execution_failure(&tool_call, &context, &error, started_at.elapsed());
                 error
@@ -94,7 +98,9 @@ impl ToolRuntime for DefaultToolRuntime {
                         let error = ToolError::timeout(format!(
                             "tool '{}' timed out after {:?}",
                             tool_call.name, timeout
-                        ));
+                        ))
+                        .with_tool_name(tool_call.name.clone())
+                        .with_tool_call_id(tool_call.id.clone());
                         self.hooks.on_execution_failure(
                             &tool_call,
                             &context,
@@ -120,8 +126,11 @@ impl ToolRuntime for DefaultToolRuntime {
                     Ok(result)
                 }
                 Err(error) => {
+                    let error = error
+                        .with_tool_name(tool_call.name.clone())
+                        .with_tool_call_id(tool_call.id.clone());
                     self.hooks
-                        .on_execution_failure(&tool_call, &context, &error, started_at.elapsed());
+                    .on_execution_failure(&tool_call, &context, &error, started_at.elapsed());
                     Err(error)
                 }
             }
