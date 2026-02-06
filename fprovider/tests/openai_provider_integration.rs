@@ -3,8 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use fprovider::adapters::openai::{
-    OpenAiAuth, OpenAiChunkStream, OpenAiProvider, OpenAiRequest, OpenAiResponse,
-    OpenAiTransport,
+    OpenAiAuth, OpenAiChunkStream, OpenAiProvider, OpenAiRequest, OpenAiResponse, OpenAiTransport,
 };
 use fprovider::{
     Message, ModelProvider, ModelRequest, ProviderError, ProviderFuture, ProviderId, Role,
@@ -63,7 +62,10 @@ async fn openai_provider_uses_openai_credentials_and_maps_completion() {
     let provider = OpenAiProvider::new(credentials, transport.clone());
 
     let request = ModelRequest::new("gpt-4o-mini", vec![Message::new(Role::User, "hello")]);
-    let response = provider.complete(request).await.expect("complete should succeed");
+    let response = provider
+        .complete(request)
+        .await
+        .expect("complete should succeed");
 
     assert_eq!(response.provider, ProviderId::OpenAi);
     assert_eq!(response.model, "gpt-4o-mini");
@@ -76,5 +78,8 @@ async fn openai_provider_uses_openai_credentials_and_maps_completion() {
         .clone()
         .expect("auth should be captured");
 
-    assert_eq!(seen_auth, OpenAiAuth::ApiKey("sk-integration-123".to_string()));
+    assert_eq!(
+        seen_auth,
+        OpenAiAuth::ApiKey("sk-integration-123".to_string())
+    );
 }

@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use futures_util::StreamExt;
 use fchat::prelude::*;
 use fprovider::{
-    Message, ModelProvider, ModelRequest, ModelResponse, OutputItem, ProviderError,
-    ProviderFuture, ProviderId, Role, StopReason, StreamEvent, TokenUsage, ToolCall,
-    VecEventStream,
+    Message, ModelProvider, ModelRequest, ModelResponse, OutputItem, ProviderError, ProviderFuture,
+    ProviderId, Role, StopReason, StreamEvent, TokenUsage, ToolCall, VecEventStream,
 };
+use futures_util::StreamExt;
 
 #[derive(Debug)]
 struct ToolLoopProvider;

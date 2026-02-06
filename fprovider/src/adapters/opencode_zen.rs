@@ -8,8 +8,8 @@ use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 
 use crate::adapters::openai::{
-    OpenAiAuth, OpenAiHttpTransport, OpenAiMessage, OpenAiRequest, OpenAiStreamChunk,
-    OpenAiTool, OpenAiTransport,
+    OpenAiAuth, OpenAiHttpTransport, OpenAiMessage, OpenAiRequest, OpenAiStreamChunk, OpenAiTool,
+    OpenAiTransport,
 };
 use crate::{
     BoxedEventStream, Message, ModelProvider, ModelRequest, ModelResponse, ProviderError,
@@ -69,7 +69,11 @@ impl OpenCodeZenProvider {
             messages.push(OpenAiMessage::tool_result(tool_result));
         }
 
-        let tools = request.tools.into_iter().map(OpenAiTool::from).collect::<Vec<_>>();
+        let tools = request
+            .tools
+            .into_iter()
+            .map(OpenAiTool::from)
+            .collect::<Vec<_>>();
 
         OpenAiRequest {
             model,
@@ -125,12 +129,17 @@ impl ModelProvider for OpenCodeZenProvider {
 }
 
 impl SecureCredentialManager {
-    pub fn set_opencode_zen_api_key(&self, api_key: impl Into<String>) -> Result<(), ProviderError> {
+    pub fn set_opencode_zen_api_key(
+        &self,
+        api_key: impl Into<String>,
+    ) -> Result<(), ProviderError> {
         self.set_api_key(ProviderId::OpenCodeZen, api_key)
     }
 }
 
-pub async fn list_zen_models_with_api_key(api_key: impl Into<String>) -> Result<Vec<String>, ProviderError> {
+pub async fn list_zen_models_with_api_key(
+    api_key: impl Into<String>,
+) -> Result<Vec<String>, ProviderError> {
     let key = api_key.into();
     let trimmed = key.trim();
     if trimmed.is_empty() {

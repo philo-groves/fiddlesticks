@@ -189,10 +189,10 @@ mod tests {
             attempts: u32,
             error: &ProviderError,
         ) {
-            self.events
-                .lock()
-                .expect("events lock")
-                .push(format!("failure:{provider}:{operation}:{attempts}:{:?}", error.kind));
+            self.events.lock().expect("events lock").push(format!(
+                "failure:{provider}:{operation}:{attempts}:{:?}",
+                error.kind
+            ));
         }
     }
 
@@ -264,6 +264,10 @@ mod tests {
         let error = result.expect_err("result should fail");
         assert_eq!(error.kind, ProviderErrorKind::InvalidRequest);
         let events = hooks.events.lock().expect("events lock").clone();
-        assert!(events.iter().any(|item| item.contains("failure:openai:complete:1")));
+        assert!(
+            events
+                .iter()
+                .any(|item| item.contains("failure:openai:complete:1"))
+        );
     }
 }

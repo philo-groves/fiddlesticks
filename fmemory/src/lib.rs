@@ -7,9 +7,9 @@ mod types;
 
 pub mod prelude {
     pub use crate::{
-        BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryConversationStore,
-        MemoryBackend, MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus,
-        SessionManifest,
+        BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryBackend,
+        MemoryConversationStore, MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint,
+        RunStatus, SessionManifest,
     };
 }
 
@@ -71,7 +71,10 @@ mod tests {
         backend
             .append_transcript_messages(
                 &session_id,
-                vec![Message::new(Role::User, "hello"), Message::new(Role::Assistant, "hi")],
+                vec![
+                    Message::new(Role::User, "hello"),
+                    Message::new(Role::Assistant, "hi"),
+                ],
             )
             .await
             .expect("transcript should append");

@@ -3,10 +3,10 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use fprovider::ToolCall;
 use futures_timer::Delay;
 use futures_util::future::{Either, select};
 use futures_util::{FutureExt, pin_mut};
-use fprovider::ToolCall;
 
 use crate::{
     NoopToolRuntimeHooks, ToolError, ToolExecutionContext, ToolExecutionResult, ToolFuture,
@@ -74,12 +74,10 @@ impl ToolRuntime for DefaultToolRuntime {
             self.hooks.on_execution_start(&tool_call, &context);
 
             let tool = self.registry.get(&tool_call.name).ok_or_else(|| {
-                let error = ToolError::not_found(format!(
-                    "tool '{}' is not registered",
-                    tool_call.name
-                ))
-                .with_tool_name(tool_call.name.clone())
-                .with_tool_call_id(tool_call.id.clone());
+                let error =
+                    ToolError::not_found(format!("tool '{}' is not registered", tool_call.name))
+                        .with_tool_name(tool_call.name.clone())
+                        .with_tool_call_id(tool_call.id.clone());
                 self.hooks
                     .on_execution_failure(&tool_call, &context, &error, started_at.elapsed());
                 error
@@ -129,8 +127,12 @@ impl ToolRuntime for DefaultToolRuntime {
                     let error = error
                         .with_tool_name(tool_call.name.clone())
                         .with_tool_call_id(tool_call.id.clone());
-                    self.hooks
-                    .on_execution_failure(&tool_call, &context, &error, started_at.elapsed());
+                    self.hooks.on_execution_failure(
+                        &tool_call,
+                        &context,
+                        &error,
+                        started_at.elapsed(),
+                    );
                     Err(error)
                 }
             }
@@ -165,13 +167,9 @@ mod tests {
             args_json: &'a str,
             context: &'a ToolExecutionContext,
         ) -> ToolFuture<'a, Result<String, ToolError>> {
-            Box::pin(async move {
-                Ok(format!(
-                    "session={} args={}",
-                    context.session_id,
-                    args_json
-                ))
-            })
+            Box::pin(
+                async move { Ok(format!("session={} args={}", context.session_id, args_json)) },
+            )
         }
     }
 
@@ -327,7 +325,8 @@ mod tests {
     async fn runtime_timeout_returns_timeout_error() {
         let mut registry = ToolRegistry::new();
         registry.register(SlowTool);
-        let runtime = DefaultToolRuntime::new(Arc::new(registry)).with_timeout(Duration::from_millis(10));
+        let runtime =
+            DefaultToolRuntime::new(Arc::new(registry)).with_timeout(Duration::from_millis(10));
 
         let error = runtime
             .execute(
@@ -350,8 +349,7 @@ mod tests {
 
         let mut success_registry = ToolRegistry::new();
         success_registry.register(EchoTool);
-        let runtime =
-            DefaultToolRuntime::new(Arc::new(success_registry)).with_hooks(hooks.clone());
+        let runtime = DefaultToolRuntime::new(Arc::new(success_registry)).with_hooks(hooks.clone());
 
         let _ = runtime
             .execute(
@@ -381,7 +379,11 @@ mod tests {
         let events = hooks.events.lock().expect("events lock").clone();
         assert!(events.contains(&"start:echo".to_string()));
         assert!(events.contains(&"success:echo".to_string()));
-        assert!(events.iter().any(|event| event.starts_with("failure:missing:NotFound")));
+        assert!(
+            events
+                .iter()
+                .any(|event| event.starts_with("failure:missing:NotFound"))
+        );
     }
 
     #[tokio::test]

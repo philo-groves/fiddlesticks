@@ -4,12 +4,11 @@ use std::sync::{Arc, Mutex};
 
 use fprovider::adapters::openai::{
     OpenAiAuth, OpenAiChunkStream, OpenAiProvider, OpenAiRequest, OpenAiResponse,
-    OpenAiStreamChunk,
-    OpenAiTransport,
+    OpenAiStreamChunk, OpenAiTransport,
 };
 use fprovider::{
     Message, ModelProvider, ModelRequest, ProviderError, ProviderFuture, ProviderId, Role,
-    StopReason, ToolDefinition, ToolResult, SecureCredentialManager,
+    SecureCredentialManager, StopReason, ToolDefinition, ToolResult,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,12 +65,14 @@ impl OpenAiTransport for FakeTransport {
                 OpenAiAuth::BrowserSession(value) => CapturedAuth("browser_session", value),
             });
 
-            let output = futures_util::stream::iter(vec![
-                OpenAiStreamChunk::TextDelta("hello".to_string()),
-                OpenAiStreamChunk::TextDelta(" world".to_string()),
-            ]
-            .into_iter()
-            .map(Ok));
+            let output = futures_util::stream::iter(
+                vec![
+                    OpenAiStreamChunk::TextDelta("hello".to_string()),
+                    OpenAiStreamChunk::TextDelta(" world".to_string()),
+                ]
+                .into_iter()
+                .map(Ok),
+            );
 
             Ok(Box::pin(output) as OpenAiChunkStream<'a>)
         })
@@ -98,7 +99,10 @@ async fn complete_maps_openai_response_to_provider_response() {
             output: "{\"ok\":true}".to_string(),
         }]);
 
-    let response = provider.complete(request).await.expect("completion should succeed");
+    let response = provider
+        .complete(request)
+        .await
+        .expect("completion should succeed");
     assert_eq!(response.provider, ProviderId::OpenAi);
     assert_eq!(response.stop_reason, StopReason::ToolUse);
     assert_eq!(response.usage.total_tokens, 10);
@@ -134,7 +138,10 @@ async fn stream_prefers_browser_session_when_api_key_missing() {
     let provider = OpenAiProvider::new(credentials, transport.clone());
     let request = ModelRequest::new("gpt-4o-mini", vec![Message::new(Role::User, "hi")]);
 
-    let _stream = provider.stream(request).await.expect("stream should succeed");
+    let _stream = provider
+        .stream(request)
+        .await
+        .expect("stream should succeed");
 
     let auth = transport
         .captured_auth
@@ -142,7 +149,10 @@ async fn stream_prefers_browser_session_when_api_key_missing() {
         .expect("auth lock")
         .clone()
         .expect("auth should be captured");
-    assert_eq!(auth, CapturedAuth("browser_session", "session-xyz".to_string()));
+    assert_eq!(
+        auth,
+        CapturedAuth("browser_session", "session-xyz".to_string())
+    );
 
     let captured_request = transport
         .captured_request
@@ -160,7 +170,10 @@ async fn missing_openai_credentials_returns_auth_error() {
     let provider = OpenAiProvider::new(credentials, transport);
     let request = ModelRequest::new("gpt-4o-mini", vec![Message::new(Role::User, "hi")]);
 
-    let error = provider.complete(request).await.expect_err("missing creds should fail");
+    let error = provider
+        .complete(request)
+        .await
+        .expect_err("missing creds should fail");
     assert_eq!(error.kind, fprovider::ProviderErrorKind::Authentication);
     assert_eq!(error.message, "no OpenAI credentials configured");
 }

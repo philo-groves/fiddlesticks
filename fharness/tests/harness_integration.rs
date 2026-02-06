@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use fchat::ChatSession;
+use fcommon::{BoxFuture, SessionId};
 use fharness::{
     CodingRunRequest, Harness, InitializerRequest, OutcomeValidator, RuntimeRunOutcome,
     RuntimeRunRequest,
 };
-use fcommon::{BoxFuture, SessionId};
 use fmemory::{FeatureRecord, InMemoryMemoryBackend, MemoryBackend};
 use fprovider::{
     Message, ModelProvider, ModelRequest, ModelResponse, OutputItem, ProviderFuture, ProviderId,
@@ -95,8 +95,18 @@ async fn initializer_creates_required_artifacts() {
     assert!(bootstrap.manifest.is_some());
     assert_eq!(bootstrap.feature_list.len(), 1);
     assert_eq!(bootstrap.feature_list[0].id, "feature-1");
-    assert!(bootstrap.recent_progress.iter().any(|entry| entry.run_id == "run-init-1"));
-    assert!(bootstrap.checkpoints.iter().any(|cp| cp.run_id == "run-init-1"));
+    assert!(
+        bootstrap
+            .recent_progress
+            .iter()
+            .any(|entry| entry.run_id == "run-init-1")
+    );
+    assert!(
+        bootstrap
+            .checkpoints
+            .iter()
+            .any(|cp| cp.run_id == "run-init-1")
+    );
 }
 
 #[tokio::test]
@@ -130,13 +140,30 @@ async fn coding_run_picks_one_failing_feature_and_updates_progress() {
         .await
         .expect("bootstrap state should load");
 
-    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-a" && f.passes));
-    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-b" && !f.passes));
-    assert!(bootstrap.recent_progress.iter().any(|entry| entry.run_id == "run-code-1"));
-    assert!(bootstrap
-        .checkpoints
-        .iter()
-        .any(|cp| cp.run_id == "run-code-1" && cp.completed_at.is_some()));
+    assert!(
+        bootstrap
+            .feature_list
+            .iter()
+            .any(|f| f.id == "feature-a" && f.passes)
+    );
+    assert!(
+        bootstrap
+            .feature_list
+            .iter()
+            .any(|f| f.id == "feature-b" && !f.passes)
+    );
+    assert!(
+        bootstrap
+            .recent_progress
+            .iter()
+            .any(|entry| entry.run_id == "run-code-1")
+    );
+    assert!(
+        bootstrap
+            .checkpoints
+            .iter()
+            .any(|cp| cp.run_id == "run-code-1" && cp.completed_at.is_some())
+    );
 }
 
 #[tokio::test]
@@ -226,8 +253,12 @@ async fn multi_run_completion_requires_all_features_passed() {
 
     let init_outcome = harness
         .run(
-            RuntimeRunRequest::new(session.clone(), "run-init", "complete all required features")
-                .with_feature_list(vec![feature("feature-1"), feature("feature-2")]),
+            RuntimeRunRequest::new(
+                session.clone(),
+                "run-init",
+                "complete all required features",
+            )
+            .with_feature_list(vec![feature("feature-1"), feature("feature-2")]),
         )
         .await
         .expect("initializer phase should run");

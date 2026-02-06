@@ -6,14 +6,14 @@ use std::sync::Arc;
 
 use futures_util::stream;
 
-use crate::{Message, ModelRequest, ProviderError, ProviderFuture, Role, SecureCredentialManager, ToolResult};
+use crate::{
+    Message, ModelRequest, ProviderError, ProviderFuture, Role, SecureCredentialManager, ToolResult,
+};
 
 use super::provider::OpenAiProvider;
 use super::serde_api::parse_finish_reason;
 use super::transport::{OpenAiChunkStream, OpenAiTransport};
-use super::types::{
-    OpenAiAuth, OpenAiFinishReason, OpenAiRequest, OpenAiResponse, OpenAiRole,
-};
+use super::types::{OpenAiAuth, OpenAiFinishReason, OpenAiRequest, OpenAiResponse, OpenAiRole};
 
 #[derive(Debug)]
 struct NoopTransport;
@@ -60,11 +60,17 @@ fn build_openai_request_appends_tool_results_as_tool_messages() {
 #[test]
 fn parse_finish_reason_maps_expected_values() {
     assert_eq!(parse_finish_reason(Some("stop")), OpenAiFinishReason::Stop);
-    assert_eq!(parse_finish_reason(Some("length")), OpenAiFinishReason::Length);
+    assert_eq!(
+        parse_finish_reason(Some("length")),
+        OpenAiFinishReason::Length
+    );
     assert_eq!(
         parse_finish_reason(Some("tool_calls")),
         OpenAiFinishReason::ToolCalls
     );
-    assert_eq!(parse_finish_reason(Some("unknown")), OpenAiFinishReason::Other);
+    assert_eq!(
+        parse_finish_reason(Some("unknown")),
+        OpenAiFinishReason::Other
+    );
     assert_eq!(parse_finish_reason(None), OpenAiFinishReason::Other);
 }

@@ -38,7 +38,11 @@ impl OpenAiProvider {
         self
     }
 
-    pub(crate) fn build_openai_request(&self, request: ModelRequest, stream: bool) -> OpenAiRequest {
+    pub(crate) fn build_openai_request(
+        &self,
+        request: ModelRequest,
+        stream: bool,
+    ) -> OpenAiRequest {
         let model = if request.model.trim().is_empty() {
             self.fallback_model.clone()
         } else {
@@ -55,7 +59,11 @@ impl OpenAiProvider {
             messages.push(OpenAiMessage::tool_result(tool_result));
         }
 
-        let tools = request.tools.into_iter().map(OpenAiTool::from).collect::<Vec<_>>();
+        let tools = request
+            .tools
+            .into_iter()
+            .map(OpenAiTool::from)
+            .collect::<Vec<_>>();
 
         OpenAiRequest {
             model,

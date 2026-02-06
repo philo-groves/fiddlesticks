@@ -4,13 +4,13 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_stream::try_stream;
-use futures_timer::Delay;
-use futures_util::StreamExt;
 use fprovider::{
     Message, ModelProvider, ModelRequest, NoopOperationHooks, OutputItem, RetryPolicy, Role,
-    StopReason, StreamEvent, ToolCall, ToolResult, TokenUsage, execute_with_retry,
+    StopReason, StreamEvent, TokenUsage, ToolCall, ToolResult, execute_with_retry,
 };
 use ftooling::{ToolExecutionContext, ToolRuntime};
+use futures_timer::Delay;
+use futures_util::StreamExt;
 
 use crate::{
     ChatError, ChatErrorPhase, ChatEvent, ChatEventStream, ChatTurnRequest, ChatTurnResult,
@@ -513,12 +513,12 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
-    use futures_util::StreamExt;
     use fprovider::{
         ModelResponse, ProviderFuture, ProviderId, RetryPolicy, StopReason, StreamEvent,
         TokenUsage, ToolCall, VecEventStream,
     };
     use ftooling::{ToolExecutionResult, ToolFuture};
+    use futures_util::StreamExt;
 
     use super::*;
     use crate::{ChatErrorKind, ChatSession, InMemoryConversationStore};
@@ -593,7 +593,8 @@ mod tests {
         fn stream<'a>(
             &'a self,
             request: ModelRequest,
-        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>>
+        {
             Box::pin(async move {
                 self.requests
                     .lock()
@@ -716,7 +717,10 @@ mod tests {
                 Ok(ModelResponse {
                     provider: ProviderId::OpenAi,
                     model: request.model,
-                    output: vec![OutputItem::Message(Message::new(Role::Assistant, "retry ok"))],
+                    output: vec![OutputItem::Message(Message::new(
+                        Role::Assistant,
+                        "retry ok",
+                    ))],
                     stop_reason: StopReason::EndTurn,
                     usage: TokenUsage {
                         input_tokens: 2,
@@ -730,7 +734,8 @@ mod tests {
         fn stream<'a>(
             &'a self,
             _request: ModelRequest,
-        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>>
+        {
             Box::pin(async {
                 Err(fprovider::ProviderError::invalid_request(
                     "not used for flaky provider",
@@ -761,7 +766,8 @@ mod tests {
         fn stream<'a>(
             &'a self,
             _request: ModelRequest,
-        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>>
+        {
             Box::pin(async {
                 let stream = VecEventStream::new(vec![
                     Ok(StreamEvent::TextDelta("partial".to_string())),
@@ -804,18 +810,24 @@ mod tests {
         fn stream<'a>(
             &'a self,
             request: ModelRequest,
-        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>>
+        {
             Box::pin(async move {
                 let mut attempts = self.attempts.lock().expect("attempt lock");
                 *attempts += 1;
                 if *attempts == 1 {
-                    return Err(fprovider::ProviderError::timeout("temporary stream timeout"));
+                    return Err(fprovider::ProviderError::timeout(
+                        "temporary stream timeout",
+                    ));
                 }
 
                 let response = ModelResponse {
                     provider: ProviderId::OpenAi,
                     model: request.model,
-                    output: vec![OutputItem::Message(Message::new(Role::Assistant, "stream retry ok"))],
+                    output: vec![OutputItem::Message(Message::new(
+                        Role::Assistant,
+                        "stream retry ok",
+                    ))],
                     stop_reason: StopReason::EndTurn,
                     usage: TokenUsage {
                         input_tokens: 2,
@@ -880,13 +892,16 @@ mod tests {
         let store = Arc::new(InMemoryConversationStore::new());
 
         store
-            .append_messages(&SessionId::from("s2"), vec![Message::new(Role::User, "prior question")])
+            .append_messages(
+                &SessionId::from("s2"),
+                vec![Message::new(Role::User, "prior question")],
+            )
             .await
             .expect("seed store");
 
         let service = ChatService::new(provider.clone(), store);
-        let session =
-            ChatSession::new("s2", ProviderId::OpenAi, "gpt-4o-mini").with_system_prompt("be concise");
+        let session = ChatSession::new("s2", ProviderId::OpenAi, "gpt-4o-mini")
+            .with_system_prompt("be concise");
         let request = ChatTurnRequest::new(session, "new question");
 
         let _ = service.run_turn(request).await.expect("turn should work");
@@ -909,7 +924,10 @@ mod tests {
         let session = ChatSession::new("s3", ProviderId::OpenAi, "gpt-4o-mini");
         let request = ChatTurnRequest::new(session, "   ");
 
-        let error = service.run_turn(request).await.expect_err("turn should fail");
+        let error = service
+            .run_turn(request)
+            .await
+            .expect_err("turn should fail");
         assert_eq!(error.kind, ChatErrorKind::InvalidRequest);
         assert!(provider.requests.lock().expect("requests lock").is_empty());
     }
@@ -923,7 +941,10 @@ mod tests {
         let session = ChatSession::new("s4", ProviderId::OpenAi, "gpt-4o-mini");
         let request = ChatTurnRequest::new(session.clone(), "hello").enable_streaming();
 
-        let mut stream = service.stream_turn(request).await.expect("stream should build");
+        let mut stream = service
+            .stream_turn(request)
+            .await
+            .expect("stream should build");
         let mut collected = Vec::new();
         while let Some(event) = stream.next().await {
             collected.push(event.expect("event should be ok"));
@@ -1003,7 +1024,9 @@ mod tests {
             },
         };
 
-        let service = ChatService::builder(provider.clone()).policy(policy).build();
+        let service = ChatService::builder(provider.clone())
+            .policy(policy)
+            .build();
         let session = ChatSession::new("s7", ProviderId::OpenAi, "gpt-4o-mini");
 
         let result = service
@@ -1112,7 +1135,9 @@ mod tests {
             },
         };
 
-        let service = ChatService::builder(provider.clone()).policy(policy).build();
+        let service = ChatService::builder(provider.clone())
+            .policy(policy)
+            .build();
         let session = ChatSession::new("s11", ProviderId::OpenAi, "gpt-4o-mini");
         let mut stream = service
             .stream_turn(ChatTurnRequest::new(session, "hello").enable_streaming())
@@ -1121,7 +1146,10 @@ mod tests {
 
         let mut saw_turn_complete = false;
         while let Some(item) = stream.next().await {
-            if matches!(item.expect("event should be ok"), ChatEvent::TurnComplete(_)) {
+            if matches!(
+                item.expect("event should be ok"),
+                ChatEvent::TurnComplete(_)
+            ) {
                 saw_turn_complete = true;
             }
         }

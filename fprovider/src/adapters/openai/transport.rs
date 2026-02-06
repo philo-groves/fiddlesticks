@@ -18,7 +18,8 @@ use super::types::{
     OpenAiStreamChunk, OpenAiToolCall, OpenAiUsage,
 };
 
-pub type OpenAiChunkStream<'a> = Pin<Box<dyn Stream<Item = Result<OpenAiStreamChunk, ProviderError>> + Send + 'a>>;
+pub type OpenAiChunkStream<'a> =
+    Pin<Box<dyn Stream<Item = Result<OpenAiStreamChunk, ProviderError>> + Send + 'a>>;
 
 pub trait OpenAiTransport: Send + Sync + std::fmt::Debug {
     fn complete<'a>(
@@ -64,9 +65,10 @@ impl OpenAiHttpTransport {
     ) -> reqwest::RequestBuilder {
         match auth {
             OpenAiAuth::ApiKey(key) => builder.bearer_auth(key),
-            OpenAiAuth::BrowserSession(token) => {
-                builder.header("Cookie", format!("__Secure-next-auth.session-token={token}"))
-            }
+            OpenAiAuth::BrowserSession(token) => builder.header(
+                "Cookie",
+                format!("__Secure-next-auth.session-token={token}"),
+            ),
         }
     }
 
@@ -105,13 +107,17 @@ impl OpenAiTransport for OpenAiHttpTransport {
             let api_request = build_api_request(request)?;
             let url = self.endpoint("chat/completions");
             let builder = self.client.post(url).json(&api_request);
-            let response = self.apply_auth(builder, &auth).send().await.map_err(|err| {
-                if err.is_timeout() {
-                    ProviderError::timeout(err.to_string())
-                } else {
-                    ProviderError::transport(err.to_string())
-                }
-            })?;
+            let response = self
+                .apply_auth(builder, &auth)
+                .send()
+                .await
+                .map_err(|err| {
+                    if err.is_timeout() {
+                        ProviderError::timeout(err.to_string())
+                    } else {
+                        ProviderError::transport(err.to_string())
+                    }
+                })?;
 
             if !response.status().is_success() {
                 return Err(Self::parse_error(response).await);
@@ -137,13 +143,17 @@ impl OpenAiTransport for OpenAiHttpTransport {
             let api_request = build_api_request(request)?;
             let url = self.endpoint("chat/completions");
             let builder = self.client.post(url).json(&api_request);
-            let response = self.apply_auth(builder, &auth).send().await.map_err(|err| {
-                if err.is_timeout() {
-                    ProviderError::timeout(err.to_string())
-                } else {
-                    ProviderError::transport(err.to_string())
-                }
-            })?;
+            let response = self
+                .apply_auth(builder, &auth)
+                .send()
+                .await
+                .map_err(|err| {
+                    if err.is_timeout() {
+                        ProviderError::timeout(err.to_string())
+                    } else {
+                        ProviderError::transport(err.to_string())
+                    }
+                })?;
 
             if !response.status().is_success() {
                 return Err(Self::parse_error(response).await);

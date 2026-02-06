@@ -2,14 +2,14 @@
 
 use std::sync::{Arc, Mutex};
 
-use fprovider::adapters::opencode_zen::OpenCodeZenProvider;
 use fprovider::adapters::openai::{
     OpenAiAssistantMessage, OpenAiAuth, OpenAiChunkStream, OpenAiFinishReason, OpenAiRequest,
     OpenAiResponse, OpenAiStreamChunk, OpenAiToolCall, OpenAiTransport, OpenAiUsage,
 };
+use fprovider::adapters::opencode_zen::OpenCodeZenProvider;
 use fprovider::{
     Message, ModelProvider, ModelRequest, ProviderError, ProviderFuture, ProviderId, Role,
-    StreamEvent, StopReason, SecureCredentialManager,
+    SecureCredentialManager, StopReason, StreamEvent,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,24 +66,26 @@ impl OpenAiTransport for FakeTransport {
                 OpenAiAuth::BrowserSession(value) => CapturedAuth(value),
             });
 
-            let output = futures_util::stream::iter(vec![
-                OpenAiStreamChunk::TextDelta("hello".to_string()),
-                OpenAiStreamChunk::ResponseComplete(OpenAiResponse {
-                    model: "kimi-k2.5".to_string(),
-                    message: OpenAiAssistantMessage {
-                        content: "hello".to_string(),
-                        tool_calls: Vec::new(),
-                    },
-                    finish_reason: OpenAiFinishReason::Stop,
-                    usage: OpenAiUsage {
-                        prompt_tokens: 1,
-                        completion_tokens: 1,
-                        total_tokens: 2,
-                    },
-                }),
-            ]
-            .into_iter()
-            .map(Ok));
+            let output = futures_util::stream::iter(
+                vec![
+                    OpenAiStreamChunk::TextDelta("hello".to_string()),
+                    OpenAiStreamChunk::ResponseComplete(OpenAiResponse {
+                        model: "kimi-k2.5".to_string(),
+                        message: OpenAiAssistantMessage {
+                            content: "hello".to_string(),
+                            tool_calls: Vec::new(),
+                        },
+                        finish_reason: OpenAiFinishReason::Stop,
+                        usage: OpenAiUsage {
+                            prompt_tokens: 1,
+                            completion_tokens: 1,
+                            total_tokens: 2,
+                        },
+                    }),
+                ]
+                .into_iter()
+                .map(Ok),
+            );
 
             Ok(Box::pin(output) as OpenAiChunkStream<'a>)
         })
@@ -101,7 +103,10 @@ async fn complete_uses_zen_credentials_and_maps_provider_id() {
     let provider = OpenCodeZenProvider::new(credentials, transport.clone());
     let request = ModelRequest::new("kimi-k2.5", vec![Message::new(Role::User, "hi")]);
 
-    let response = provider.complete(request).await.expect("complete should succeed");
+    let response = provider
+        .complete(request)
+        .await
+        .expect("complete should succeed");
     assert_eq!(response.provider, ProviderId::OpenCodeZen);
     assert_eq!(response.model, "kimi-k2.5");
     assert_eq!(response.stop_reason, StopReason::ToolUse);
@@ -126,7 +131,10 @@ async fn stream_maps_response_complete_to_zen_provider_id() {
     let provider = OpenCodeZenProvider::new(credentials, transport);
     let request = ModelRequest::new("kimi-k2.5", vec![Message::new(Role::User, "stream")]);
 
-    let mut stream = provider.stream(request).await.expect("stream should succeed");
+    let mut stream = provider
+        .stream(request)
+        .await
+        .expect("stream should succeed");
     let mut saw_provider = None;
     while let Some(item) = futures_util::StreamExt::next(&mut stream).await {
         let event = item.expect("stream event should be ok");

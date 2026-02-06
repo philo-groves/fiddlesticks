@@ -1,13 +1,13 @@
 //! Crate entrypoint that wires modules and public re-exports.
 
-mod credentials;
 pub mod adapters;
+mod credentials;
 mod error;
 mod model;
 pub mod prelude;
 mod provider;
-mod resilience;
 mod registry;
+mod resilience;
 mod stream;
 
 pub use credentials::{
@@ -20,16 +20,14 @@ pub use model::{
     StopReason, TokenUsage, ToolCall, ToolDefinition, ToolResult,
 };
 pub use provider::{ModelProvider, ProviderFuture};
-pub use resilience::{
-    NoopOperationHooks, ProviderOperationHooks, RetryPolicy, execute_with_retry,
-};
 pub use registry::ProviderRegistry;
+pub use resilience::{NoopOperationHooks, ProviderOperationHooks, RetryPolicy, execute_with_retry};
 pub use stream::{BoxedEventStream, ModelEventStream, StreamEvent, VecEventStream};
 
 #[cfg(test)]
 mod tests {
-    use futures_core::Stream;
     use super::*;
+    use futures_core::Stream;
     use std::future::Future;
     use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
     use std::time::{Duration, UNIX_EPOCH};
@@ -100,8 +98,8 @@ mod tests {
             .expect_err("empty messages must fail");
         assert_eq!(err.kind, ProviderErrorKind::InvalidRequest);
 
-        let bad_temperature = ModelRequest::new("gpt", vec![Message::new(Role::User, "hi")])
-            .with_temperature(2.5);
+        let bad_temperature =
+            ModelRequest::new("gpt", vec![Message::new(Role::User, "hi")]).with_temperature(2.5);
         let err = bad_temperature
             .validate()
             .expect_err("temperature outside range must fail");
@@ -248,9 +246,11 @@ mod tests {
         manager
             .set_api_key(ProviderId::Claude, "claude-key")
             .expect("api key set should work");
-        assert!(manager
-            .has_credentials(ProviderId::Claude)
-            .expect("has_credentials should work"));
+        assert!(
+            manager
+                .has_credentials(ProviderId::Claude)
+                .expect("has_credentials should work")
+        );
 
         let kind = manager
             .credential_kind(ProviderId::Claude)
@@ -266,9 +266,11 @@ mod tests {
             .clear(ProviderId::Claude)
             .expect("clear should work");
         assert!(cleared);
-        assert!(!manager
-            .has_credentials(ProviderId::Claude)
-            .expect("has_credentials should work"));
+        assert!(
+            !manager
+                .has_credentials(ProviderId::Claude)
+                .expect("has_credentials should work")
+        );
     }
 
     #[test]
@@ -287,10 +289,16 @@ mod tests {
 
         let captured = manager
             .with_browser_session(ProviderId::OpenCodeZen, |session| {
-                (session.session_token.expose().to_string(), session.expires_at)
+                (
+                    session.session_token.expose().to_string(),
+                    session.expires_at,
+                )
             })
             .expect("session read should work");
-        assert_eq!(captured, Some(("session-token".to_string(), Some(expires_at))));
+        assert_eq!(
+            captured,
+            Some(("session-token".to_string(), Some(expires_at)))
+        );
     }
 
     #[cfg(feature = "provider-openai")]
