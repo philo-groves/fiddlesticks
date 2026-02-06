@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+futures-timer = "3"
+futures-util = "0.3"
 fprovider = { path = "../fprovider" }
 
 [dev-dependencies]
