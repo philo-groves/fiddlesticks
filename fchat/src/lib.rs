@@ -12,6 +12,7 @@ pub mod prelude {
         ChatTurnRequest, ChatTurnResult,
         ConversationStore, InMemoryConversationStore,
     };
+    pub use fcommon::{MetadataMap, SessionId, TraceId};
     pub use ftooling::{
         DefaultToolRuntime, Tool, ToolError, ToolErrorKind, ToolExecutionContext,
         ToolExecutionResult, ToolRegistry, ToolRuntime,
@@ -24,6 +25,7 @@ pub use store::{ConversationStore, InMemoryConversationStore};
 pub use types::{
     ChatEvent, ChatEventStream, ChatSession, ChatTurnOptions, ChatTurnRequest, ChatTurnResult,
 };
+pub use fcommon::{MetadataMap, SessionId, TraceId};
 pub use ftooling::{
     DefaultToolRuntime, Tool, ToolError, ToolErrorKind, ToolExecutionContext, ToolExecutionResult,
     ToolRegistry, ToolRuntime,

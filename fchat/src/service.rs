@@ -522,6 +522,7 @@ mod tests {
 
     use super::*;
     use crate::{ChatErrorKind, ChatSession, InMemoryConversationStore};
+    use fcommon::SessionId;
 
     #[derive(Debug)]
     struct FakeProvider {
@@ -729,7 +730,7 @@ mod tests {
         let request = ChatTurnRequest::new(session.clone(), "hello");
 
         let result = service.run_turn(request).await.expect("turn should work");
-        assert_eq!(result.session_id, "s1");
+        assert_eq!(result.session_id, SessionId::from("s1"));
         assert_eq!(result.assistant_message, "assistant reply");
         assert_eq!(result.tool_calls.len(), 1);
 
@@ -766,7 +767,7 @@ mod tests {
         let store = Arc::new(InMemoryConversationStore::new());
 
         store
-            .append_messages("s2", vec![Message::new(Role::User, "prior question")])
+            .append_messages(&SessionId::from("s2"), vec![Message::new(Role::User, "prior question")])
             .await
             .expect("seed store");
 

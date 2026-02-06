@@ -13,6 +13,7 @@ pub mod prelude {
         ToolExecutionContext, ToolExecutionResult, ToolFuture, ToolRegistry, ToolRuntime,
         ToolRuntimeHooks,
     };
+    pub use fcommon::{MetadataMap, SessionId, TraceId};
 }
 
 pub use error::{ToolError, ToolErrorKind};
@@ -21,3 +22,4 @@ pub use registry::ToolRegistry;
 pub use runtime::{DefaultToolRuntime, ToolRuntime};
 pub use tool::{FunctionTool, Tool, ToolFuture};
 pub use types::{ToolExecutionContext, ToolExecutionResult};
+pub use fcommon::{MetadataMap, SessionId, TraceId};

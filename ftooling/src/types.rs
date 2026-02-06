@@ -1,26 +1,25 @@
 //! Tool runtime context and execution result types.
 
-use std::collections::HashMap;
-
+use fcommon::{MetadataMap, SessionId, TraceId};
 use fprovider::{ToolCall, ToolResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolExecutionContext {
-    pub session_id: String,
-    pub trace_id: Option<String>,
-    pub metadata: HashMap<String, String>,
+    pub session_id: SessionId,
+    pub trace_id: Option<TraceId>,
+    pub metadata: MetadataMap,
 }
 
 impl ToolExecutionContext {
-    pub fn new(session_id: impl Into<String>) -> Self {
+    pub fn new(session_id: impl Into<SessionId>) -> Self {
         Self {
             session_id: session_id.into(),
             trace_id: None,
-            metadata: HashMap::new(),
+            metadata: MetadataMap::new(),
         }
     }
 
-    pub fn with_trace_id(mut self, trace_id: impl Into<String>) -> Self {
+    pub fn with_trace_id(mut self, trace_id: impl Into<TraceId>) -> Self {
         self.trace_id = Some(trace_id.into());
         self
     }

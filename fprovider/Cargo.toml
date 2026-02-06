@@ -15,6 +15,7 @@ provider-openai = [
 provider-claude = []
 
 [dependencies]
+fcommon = { path = "../fcommon" }
 futures-core = "0.3"
 futures-util = { version = "0.3", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }

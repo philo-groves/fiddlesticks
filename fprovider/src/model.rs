@@ -1,7 +1,8 @@
 //! Provider-agnostic request, response, and message model types.
 
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+
+use fcommon::MetadataMap;
 
 use crate::{ProviderError, ProviderErrorKind};
 
@@ -106,7 +107,7 @@ pub struct ModelRequest {
     pub max_tokens: Option<u32>,
     pub tools: Vec<ToolDefinition>,
     pub tool_results: Vec<ToolResult>,
-    pub metadata: HashMap<String, String>,
+    pub metadata: MetadataMap,
     pub stream: bool,
 }
 
@@ -123,7 +124,7 @@ impl ModelRequest {
             max_tokens: None,
             tools: Vec::new(),
             tool_results: Vec::new(),
-            metadata: HashMap::new(),
+            metadata: MetadataMap::new(),
             stream: false,
         }
     }
@@ -208,7 +209,7 @@ pub struct ModelRequestBuilder {
     max_tokens: Option<u32>,
     tools: Vec<ToolDefinition>,
     tool_results: Vec<ToolResult>,
-    metadata: HashMap<String, String>,
+    metadata: MetadataMap,
     stream: bool,
 }
 
@@ -221,7 +222,7 @@ impl ModelRequestBuilder {
             max_tokens: None,
             tools: Vec::new(),
             tool_results: Vec::new(),
-            metadata: HashMap::new(),
+            metadata: MetadataMap::new(),
             stream: false,
         }
     }

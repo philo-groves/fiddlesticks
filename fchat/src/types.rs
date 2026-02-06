@@ -2,19 +2,20 @@
 
 use std::pin::Pin;
 
+use fcommon::SessionId;
 use fprovider::{ProviderId, StopReason, TokenUsage, ToolCall};
 use futures_core::Stream;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatSession {
-    pub id: String,
+    pub id: SessionId,
     pub provider: ProviderId,
     pub model: String,
     pub system_prompt: Option<String>,
 }
 
 impl ChatSession {
-    pub fn new(id: impl Into<String>, provider: ProviderId, model: impl Into<String>) -> Self {
+    pub fn new(id: impl Into<SessionId>, provider: ProviderId, model: impl Into<String>) -> Self {
         Self {
             id: id.into(),
             provider,
@@ -81,7 +82,7 @@ impl ChatTurnRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatTurnResult {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub assistant_message: String,
     pub tool_calls: Vec<ToolCall>,
     pub stop_reason: StopReason,

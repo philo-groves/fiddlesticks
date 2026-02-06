@@ -1,14 +1,14 @@
 //! Tool trait contract for registry-managed capabilities.
 
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 
+use fcommon::BoxFuture;
 use fprovider::ToolDefinition;
 
 use crate::{ToolError, ToolExecutionContext};
 
-pub type ToolFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub type ToolFuture<'a, T> = BoxFuture<'a, T>;
 
 pub trait Tool: Send + Sync {
     fn definition(&self) -> ToolDefinition;

@@ -14,6 +14,7 @@ pub use credentials::{
     BrowserLoginSession, CredentialKind, ProviderCredential, SecretString, SecureCredentialManager,
 };
 pub use error::{ProviderError, ProviderErrorKind};
+pub use fcommon::{BoxFuture, MetadataMap};
 pub use model::{
     Message, ModelRequest, ModelRequestBuilder, ModelResponse, OutputItem, ProviderId, Role,
     StopReason, TokenUsage, ToolCall, ToolDefinition, ToolResult,

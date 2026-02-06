@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+fcommon = { path = "../fcommon" }
 futures-timer = "3"
 futures-util = "0.3"
 fprovider = { path = "../fprovider" }

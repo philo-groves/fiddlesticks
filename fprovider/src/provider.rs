@@ -1,11 +1,10 @@
 //! Core async provider trait and future alias.
 
-use std::future::Future;
-use std::pin::Pin;
+use fcommon::BoxFuture;
 
 use crate::{BoxedEventStream, ModelRequest, ModelResponse, ProviderError, ProviderId};
 
-pub type ProviderFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub type ProviderFuture<'a, T> = BoxFuture<'a, T>;
 
 pub trait ModelProvider: Send + Sync {
     fn id(&self) -> ProviderId;

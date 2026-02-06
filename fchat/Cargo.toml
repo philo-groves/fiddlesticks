@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 async-stream = "0.3"
+fcommon = { path = "../fcommon" }
 futures-core = "0.3"
 futures-timer = "3"
 futures-util = "0.3"

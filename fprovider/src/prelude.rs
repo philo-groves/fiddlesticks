@@ -6,3 +6,4 @@ pub use crate::{
     ProviderErrorKind, ProviderId, ProviderOperationHooks, ProviderRegistry, RetryPolicy, Role,
     StopReason, StreamEvent, TokenUsage, ToolCall, ToolDefinition, ToolResult,
 };
+pub use fcommon::{BoxFuture, MetadataMap};

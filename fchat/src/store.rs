@@ -1,32 +1,31 @@
 //! Conversation storage contracts and a basic in-memory implementation.
 
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Mutex;
 
+use fcommon::{BoxFuture, SessionId};
 use fprovider::Message;
 
 use crate::ChatError;
 
-pub type ChatFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub type ChatFuture<'a, T> = BoxFuture<'a, T>;
 
 pub trait ConversationStore: Send + Sync {
     fn load_messages<'a>(
         &'a self,
-        session_id: &'a str,
+        session_id: &'a SessionId,
     ) -> ChatFuture<'a, Result<Vec<Message>, ChatError>>;
 
     fn append_messages<'a>(
         &'a self,
-        session_id: &'a str,
+        session_id: &'a SessionId,
         messages: Vec<Message>,
     ) -> ChatFuture<'a, Result<(), ChatError>>;
 }
 
 #[derive(Debug, Default)]
 pub struct InMemoryConversationStore {
-    sessions: Mutex<HashMap<String, Vec<Message>>>,
+    sessions: Mutex<HashMap<SessionId, Vec<Message>>>,
 }
 
 impl InMemoryConversationStore {
@@ -38,7 +37,7 @@ impl InMemoryConversationStore {
 impl ConversationStore for InMemoryConversationStore {
     fn load_messages<'a>(
         &'a self,
-        session_id: &'a str,
+        session_id: &'a SessionId,
     ) -> ChatFuture<'a, Result<Vec<Message>, ChatError>> {
         Box::pin(async move {
             let sessions = self
@@ -52,7 +51,7 @@ impl ConversationStore for InMemoryConversationStore {
 
     fn append_messages<'a>(
         &'a self,
-        session_id: &'a str,
+        session_id: &'a SessionId,
         messages: Vec<Message>,
     ) -> ChatFuture<'a, Result<(), ChatError>> {
         Box::pin(async move {
@@ -62,7 +61,7 @@ impl ConversationStore for InMemoryConversationStore {
                 .map_err(|_| ChatError::store("conversation store lock poisoned"))?;
 
             sessions
-                .entry(session_id.to_string())
+                .entry(session_id.clone())
                 .or_default()
                 .extend(messages);
 

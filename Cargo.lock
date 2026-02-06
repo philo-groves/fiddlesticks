@@ -92,6 +92,7 @@ name = "fchat"
 version = "0.1.0"
 dependencies = [
  "async-stream",
+ "fcommon",
  "fprovider",
  "ftooling",
  "futures-core",
@@ -127,6 +128,7 @@ dependencies = [
 name = "fprovider"
 version = "0.1.0"
 dependencies = [
+ "fcommon",
  "futures-core",
  "futures-util",
  "reqwest",
@@ -139,6 +141,7 @@ dependencies = [
 name = "ftooling"
 version = "0.1.0"
 dependencies = [
+ "fcommon",
  "fprovider",
  "futures-timer",
  "futures-util",
