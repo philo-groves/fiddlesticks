@@ -86,13 +86,20 @@ pub struct ChatTurnResult {
     pub tool_calls: Vec<ToolCall>,
     pub stop_reason: StopReason,
     pub usage: TokenUsage,
+    pub tool_round_limit_reached: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChatEvent {
     TextDelta(String),
     ToolCallDelta(ToolCall),
+    ToolExecutionStarted(ToolCall),
+    ToolExecutionFinished(ToolCall),
     AssistantMessageComplete(String),
+    ToolRoundLimitReached {
+        max_round_trips: usize,
+        pending_tool_calls: usize,
+    },
     TurnComplete(ChatTurnResult),
 }
 

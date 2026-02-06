@@ -95,6 +95,7 @@ dependencies = [
  "fprovider",
  "ftooling",
  "futures-core",
+ "futures-timer",
  "futures-util",
  "tokio",
 ]

@@ -28,6 +28,8 @@ The implementation currently supports:
 - Session-level system prompt injection
 - In-memory transcript storage implementation for local use/tests
 - Optional tool-call execution loop via `ftooling::ToolRuntime`
+- Provider-call retries via `fprovider::RetryPolicy`
+- Tool round-cap signaling when execution limits are reached
 
 ## Add dependency
 
@@ -71,6 +73,7 @@ async fn run_chat(provider: Arc<dyn fprovider::ModelProvider>) -> Result<(), Cha
 - `ChatService::builder(provider)` defaults to `InMemoryConversationStore`
 - `ChatPolicy::default()` is applied unless overridden
 - per-turn values are merged with service defaults (`ChatTurnRequest` values win)
+- provider retries default to `RetryPolicy::default()` and can be overridden
 
 ```rust
 use std::sync::Arc;
@@ -82,6 +85,7 @@ fn build_service(provider: Arc<dyn fprovider::ModelProvider>) -> ChatService {
         .default_temperature(Some(0.3))
         .default_max_tokens(Some(512))
         .max_tool_round_trips(4)
+        .provider_retry_policy(fprovider::RetryPolicy::new(3))
         .build()
 }
 ```
@@ -138,6 +142,8 @@ async fn run_streaming(provider: Arc<dyn fprovider::ModelProvider>) -> Result<()
 Current streaming semantics:
 
 - `stream_turn` maps provider stream events into chat-layer events.
+- streaming supports multi-round tool execution when a tool runtime is configured.
+- tool lifecycle events are emitted (`ToolExecutionStarted`, `ToolExecutionFinished`).
 - Transcript persistence still occurs before `TurnComplete` is emitted.
 - Events are forwarded as they arrive from the provider stream.
 
@@ -182,6 +188,9 @@ Tool loop semantics:
 - Each provider `ToolCall` is executed through `ftooling::ToolRuntime`.
 - Tool outputs are returned to the provider as `ToolResult` values for follow-up completions.
 - Loop stops when no tool calls remain or max round-trips is reached.
+- If the max round-trip cap is reached with pending tool calls:
+  - `run_turn` sets `ChatTurnResult.tool_round_limit_reached = true`
+  - `stream_turn` also emits `ChatEvent::ToolRoundLimitReached { ... }`
 
 ## Public API overview
 
@@ -189,7 +198,8 @@ Tool loop semantics:
 - `ChatSession`: session metadata (`id`, `provider`, `model`, optional `system_prompt`)
 - `ChatTurnRequest`: user input + per-turn model params
 - `ChatTurnResult`: assistant text + tool calls + stop reason + usage
-- `ChatEvent`: streaming event envelope (`TextDelta`, `ToolCallDelta`, `AssistantMessageComplete`, `TurnComplete`)
+- `ChatTurnResult`: includes `tool_round_limit_reached` for cap visibility
+- `ChatEvent`: streaming event envelope (`TextDelta`, `ToolCallDelta`, `ToolExecutionStarted`, `ToolExecutionFinished`, `AssistantMessageComplete`, `ToolRoundLimitReached`, `TurnComplete`)
 - `ChatEventStream`: stream alias for chat event consumers
 - `ConversationStore`: async conversation history contract
 - `InMemoryConversationStore`: default in-crate store implementation

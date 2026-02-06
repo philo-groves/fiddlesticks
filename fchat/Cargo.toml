@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 async-stream = "0.3"
 futures-core = "0.3"
+futures-timer = "3"
 futures-util = "0.3"
 ftooling = { path = "../ftooling" }
 fprovider = { path = "../fprovider" }

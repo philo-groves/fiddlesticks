@@ -4,10 +4,11 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_stream::try_stream;
+use futures_timer::Delay;
 use futures_util::StreamExt;
 use fprovider::{
-    Message, ModelProvider, ModelRequest, OutputItem, Role, StopReason, StreamEvent, ToolCall,
-    ToolResult, TokenUsage,
+    Message, ModelProvider, ModelRequest, NoopOperationHooks, OutputItem, RetryPolicy, Role,
+    StopReason, StreamEvent, ToolCall, ToolResult, TokenUsage, execute_with_retry,
 };
 use ftooling::{ToolExecutionContext, ToolRuntime};
 
@@ -21,6 +22,7 @@ pub struct ChatPolicy {
     pub max_tool_round_trips: usize,
     pub default_temperature: Option<f32>,
     pub default_max_tokens: Option<u32>,
+    pub provider_retry_policy: RetryPolicy,
 }
 
 impl Default for ChatPolicy {
@@ -29,6 +31,7 @@ impl Default for ChatPolicy {
             max_tool_round_trips: 4,
             default_temperature: None,
             default_max_tokens: None,
+            provider_retry_policy: RetryPolicy::default(),
         }
     }
 }
@@ -77,6 +80,11 @@ impl ChatServiceBuilder {
 
     pub fn default_max_tokens(mut self, max_tokens: Option<u32>) -> Self {
         self.policy.default_max_tokens = max_tokens;
+        self
+    }
+
+    pub fn provider_retry_policy(mut self, provider_retry_policy: RetryPolicy) -> Self {
+        self.policy.provider_retry_policy = provider_retry_policy;
         self
     }
 
@@ -144,17 +152,18 @@ impl ChatService {
 
         let mut persisted_messages = vec![user_message];
         let mut model_response = self
-            .provider
-            .complete(build_request(
-                &session.model,
-                &conversation_messages,
-                temperature,
-                max_tokens,
-                false,
-                Vec::new(),
-            )?)
-            .await
-            .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
+            .complete_with_retry(
+                session.provider,
+                build_request(
+                    &session.model,
+                    &conversation_messages,
+                    temperature,
+                    max_tokens,
+                    false,
+                    Vec::new(),
+                )?,
+            )
+            .await?;
 
         let mut round_trips = 0;
         loop {
@@ -163,7 +172,12 @@ impl ChatService {
             conversation_messages.push(assistant.clone());
             persisted_messages.push(assistant);
 
-            let should_run_tools = self.tool_runtime.is_some()
+            let has_tool_runtime = self.tool_runtime.is_some();
+            let limit_reached = has_tool_runtime
+                && !tool_calls.is_empty()
+                && round_trips >= self.policy.max_tool_round_trips;
+
+            let should_run_tools = has_tool_runtime
                 && self.policy.max_tool_round_trips > 0
                 && !tool_calls.is_empty()
                 && round_trips < self.policy.max_tool_round_trips;
@@ -180,6 +194,7 @@ impl ChatService {
                     tool_calls,
                     stop_reason: model_response.stop_reason,
                     usage: model_response.usage,
+                    tool_round_limit_reached: limit_reached,
                 });
             }
 
@@ -198,17 +213,18 @@ impl ChatService {
 
             round_trips += 1;
             model_response = self
-                .provider
-                .complete(build_request(
-                    &session.model,
-                    &conversation_messages,
-                    temperature,
-                    max_tokens,
-                    false,
-                    tool_results,
-                )?)
-                .await
-                .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
+                .complete_with_retry(
+                    session.provider,
+                    build_request(
+                        &session.model,
+                        &conversation_messages,
+                        temperature,
+                        max_tokens,
+                        false,
+                        tool_results,
+                    )?,
+                )
+                .await?;
         }
     }
 
@@ -219,86 +235,149 @@ impl ChatService {
         let TurnContext {
             session,
             user_message,
-            conversation_messages,
+            mut conversation_messages,
             temperature,
             max_tokens,
         } = self.prepare_turn(request).await?;
 
-        let mut provider_stream = self
-            .provider
-            .stream(build_request(
-                &session.model,
-                &conversation_messages,
-                temperature,
-                max_tokens,
-                true,
-                Vec::new(),
-            )?)
-            .await
-            .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
-
+        let provider = Arc::clone(&self.provider);
         let store = Arc::clone(&self.store);
+        let tool_runtime = self.tool_runtime.clone();
+        let retry_policy = self.policy.provider_retry_policy.clone();
+        let max_tool_round_trips = self.policy.max_tool_round_trips;
+
         let stream = try_stream! {
-            let mut assistant_text = String::new();
-            let mut tool_calls = BTreeMap::<String, ToolCall>::new();
-            let mut final_result = None::<ChatTurnResult>;
+            let mut persisted_messages = vec![user_message.clone()];
+            let mut round_trips = 0usize;
+            let mut next_tool_results = Vec::<ToolResult>::new();
 
-            while let Some(event) = provider_stream.next().await {
-                let event = event.map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Streaming))?;
-                match event {
-                    StreamEvent::TextDelta(delta) => {
-                        assistant_text.push_str(&delta);
-                        yield ChatEvent::TextDelta(delta);
+            loop {
+                let request = build_request(
+                    &session.model,
+                    &conversation_messages,
+                    temperature,
+                    max_tokens,
+                    true,
+                    next_tool_results,
+                )?;
+
+                let mut provider_stream = {
+                    let mut attempt = 1_u32;
+                    loop {
+                        match provider.stream(request.clone()).await {
+                            Ok(stream) => break stream,
+                            Err(err)
+                                if retry_policy.should_retry(attempt, &err) => {
+                                    let delay = retry_policy.backoff_for_attempt(attempt);
+                                    Delay::new(delay).await;
+                                    attempt += 1;
+                                }
+                            Err(err) => {
+                                break Err::<fprovider::BoxedEventStream<'_>, _>(err)
+                                    .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
+                            }
+                        }
                     }
-                    StreamEvent::ToolCallDelta(tool_call) => {
-                        tool_calls.insert(tool_call.id.clone(), tool_call.clone());
-                        yield ChatEvent::ToolCallDelta(tool_call);
-                    }
-                    StreamEvent::MessageComplete(message) => {
-                        if message.role == Role::Assistant && assistant_text.is_empty() {
-                            assistant_text = message.content.clone();
-                        }
+                };
 
-                        if message.role == Role::Assistant {
-                            yield ChatEvent::AssistantMessageComplete(message.content);
-                        }
-                    }
-                    StreamEvent::ResponseComplete(response) => {
-                        let (content, output_tool_calls) = collect_output(response.output);
-                        if !content.is_empty() {
-                            assistant_text = content;
-                        }
+                let mut assistant_text = String::new();
+                let mut tool_calls = BTreeMap::<String, ToolCall>::new();
+                let mut stop_reason = StopReason::Other;
+                let mut usage = TokenUsage::default();
 
-                        for tool_call in output_tool_calls {
-                            tool_calls.insert(tool_call.id.clone(), tool_call);
+                while let Some(event) = provider_stream.next().await {
+                    let event = event.map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Streaming))?;
+                    match event {
+                        StreamEvent::TextDelta(delta) => {
+                            assistant_text.push_str(&delta);
+                            yield ChatEvent::TextDelta(delta);
                         }
+                        StreamEvent::ToolCallDelta(tool_call) => {
+                            tool_calls.insert(tool_call.id.clone(), tool_call.clone());
+                            yield ChatEvent::ToolCallDelta(tool_call);
+                        }
+                        StreamEvent::MessageComplete(message) => {
+                            if message.role == Role::Assistant {
+                                if assistant_text.is_empty() {
+                                    assistant_text = message.content.clone();
+                                }
+                                yield ChatEvent::AssistantMessageComplete(message.content);
+                            }
+                        }
+                        StreamEvent::ResponseComplete(response) => {
+                            let (content, output_tool_calls) = collect_output(response.output);
+                            if !content.is_empty() {
+                                assistant_text = content;
+                            }
 
-                        final_result = Some(ChatTurnResult {
-                            session_id: session.id.clone(),
-                            assistant_message: assistant_text.clone(),
-                            tool_calls: tool_calls.values().cloned().collect(),
-                            stop_reason: response.stop_reason,
-                            usage: response.usage,
-                        });
+                            for tool_call in output_tool_calls {
+                                tool_calls.insert(tool_call.id.clone(), tool_call);
+                            }
+
+                            stop_reason = response.stop_reason;
+                            usage = response.usage;
+                        }
                     }
                 }
+
+                let tool_calls_vec = tool_calls.values().cloned().collect::<Vec<_>>();
+                let assistant = Message::new(Role::Assistant, assistant_text.clone());
+                conversation_messages.push(assistant.clone());
+                persisted_messages.push(assistant);
+
+                let has_tool_runtime = tool_runtime.is_some();
+                let limit_reached = has_tool_runtime
+                    && !tool_calls_vec.is_empty()
+                    && round_trips >= max_tool_round_trips;
+                let should_run_tools = has_tool_runtime
+                    && !tool_calls_vec.is_empty()
+                    && round_trips < max_tool_round_trips;
+
+                if limit_reached {
+                    yield ChatEvent::ToolRoundLimitReached {
+                        max_round_trips: max_tool_round_trips,
+                        pending_tool_calls: tool_calls_vec.len(),
+                    };
+                }
+
+                if should_run_tools {
+                    let runtime = tool_runtime.as_ref().expect("runtime exists");
+                    let mut tool_results = Vec::new();
+                    for tool_call in tool_calls_vec {
+                        yield ChatEvent::ToolExecutionStarted(tool_call.clone());
+                        let executed = runtime
+                            .execute(tool_call.clone(), ToolExecutionContext::new(session.id.clone()))
+                            .await
+                            .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Tooling))?;
+                        yield ChatEvent::ToolExecutionFinished(tool_call);
+                        tool_results.push(ToolResult {
+                            tool_call_id: executed.tool_call_id,
+                            output: executed.output,
+                        });
+                    }
+
+                    round_trips += 1;
+                    next_tool_results = tool_results;
+                    continue;
+                }
+
+                let turn_result = ChatTurnResult {
+                    session_id: session.id.clone(),
+                    assistant_message: assistant_text,
+                    tool_calls: tool_calls_vec,
+                    stop_reason,
+                    usage,
+                    tool_round_limit_reached: limit_reached,
+                };
+
+                store
+                    .append_messages(&session.id, persisted_messages)
+                    .await
+                    .map_err(|err| err.with_phase(ChatErrorPhase::Storage))?;
+
+                yield ChatEvent::TurnComplete(turn_result);
+                break;
             }
-
-            let turn_result = final_result.unwrap_or(ChatTurnResult {
-                session_id: session.id.clone(),
-                assistant_message: assistant_text.clone(),
-                tool_calls: tool_calls.values().cloned().collect(),
-                stop_reason: StopReason::Other,
-                usage: TokenUsage::default(),
-            });
-
-            let assistant = Message::new(Role::Assistant, turn_result.assistant_message.clone());
-            store
-                .append_messages(&session.id, vec![user_message, assistant])
-                .await
-                .map_err(|err| err.with_phase(ChatErrorPhase::Storage))?;
-
-            yield ChatEvent::TurnComplete(turn_result);
         };
 
         Ok(Box::pin(stream))
@@ -342,6 +421,33 @@ impl ChatService {
             temperature,
             max_tokens,
         })
+    }
+
+    async fn complete_with_retry(
+        &self,
+        provider_id: fprovider::ProviderId,
+        request: ModelRequest,
+    ) -> Result<fprovider::ModelResponse, ChatError> {
+        let provider = Arc::clone(&self.provider);
+        let policy = self.policy.provider_retry_policy.clone();
+        let hooks = NoopOperationHooks;
+
+        execute_with_retry(
+            provider_id,
+            "complete",
+            &policy,
+            &hooks,
+            |_| {
+                let provider = Arc::clone(&provider);
+                let request = request.clone();
+                async move { provider.complete(request).await }
+            },
+            |delay| async move {
+                Delay::new(delay).await;
+            },
+        )
+        .await
+        .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))
     }
 }
 
@@ -405,11 +511,12 @@ fn collect_output(items: Vec<OutputItem>) -> (String, Vec<ToolCall>) {
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     use futures_util::StreamExt;
     use fprovider::{
-        ModelResponse, ProviderFuture, ProviderId, StopReason, StreamEvent, TokenUsage, ToolCall,
-        VecEventStream,
+        ModelResponse, ProviderFuture, ProviderId, RetryPolicy, StopReason, StreamEvent,
+        TokenUsage, ToolCall, VecEventStream,
     };
     use ftooling::{ToolExecutionResult, ToolFuture};
 
@@ -492,23 +599,40 @@ mod tests {
                     .expect("requests lock")
                     .push(request.clone());
 
-                let final_response = ModelResponse {
-                    provider: ProviderId::OpenAi,
-                    model: request.model,
-                    output: vec![
-                        OutputItem::Message(Message::new(Role::Assistant, "hello world")),
-                        OutputItem::ToolCall(ToolCall {
-                            id: "call_2".to_string(),
-                            name: "search".to_string(),
-                            arguments: "{}".to_string(),
-                        }),
-                    ],
-                    stop_reason: StopReason::EndTurn,
-                    usage: TokenUsage {
-                        input_tokens: 12,
-                        output_tokens: 6,
-                        total_tokens: 18,
-                    },
+                let final_response = if !request.tool_results.is_empty() {
+                    ModelResponse {
+                        provider: ProviderId::OpenAi,
+                        model: request.model,
+                        output: vec![OutputItem::Message(Message::new(
+                            Role::Assistant,
+                            "tool stream answer",
+                        ))],
+                        stop_reason: StopReason::EndTurn,
+                        usage: TokenUsage {
+                            input_tokens: 15,
+                            output_tokens: 6,
+                            total_tokens: 21,
+                        },
+                    }
+                } else {
+                    ModelResponse {
+                        provider: ProviderId::OpenAi,
+                        model: request.model,
+                        output: vec![
+                            OutputItem::Message(Message::new(Role::Assistant, "hello world")),
+                            OutputItem::ToolCall(ToolCall {
+                                id: "call_2".to_string(),
+                                name: "search".to_string(),
+                                arguments: "{}".to_string(),
+                            }),
+                        ],
+                        stop_reason: StopReason::EndTurn,
+                        usage: TokenUsage {
+                            input_tokens: 12,
+                            output_tokens: 6,
+                            total_tokens: 18,
+                        },
+                    }
                 };
 
                 let stream = VecEventStream::new(vec![
@@ -536,6 +660,61 @@ mod tests {
                     tool_call_id: tool_call.id,
                     output: "{\"result\":\"ok\"}".to_string(),
                 })
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    struct FlakyProvider {
+        attempts: Mutex<u32>,
+    }
+
+    impl FlakyProvider {
+        fn new() -> Self {
+            Self {
+                attempts: Mutex::new(0),
+            }
+        }
+    }
+
+    impl ModelProvider for FlakyProvider {
+        fn id(&self) -> ProviderId {
+            ProviderId::OpenAi
+        }
+
+        fn complete<'a>(
+            &'a self,
+            request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<ModelResponse, fprovider::ProviderError>> {
+            Box::pin(async move {
+                let mut attempts = self.attempts.lock().expect("attempt lock");
+                *attempts += 1;
+                if *attempts == 1 {
+                    return Err(fprovider::ProviderError::timeout("temporary timeout"));
+                }
+
+                Ok(ModelResponse {
+                    provider: ProviderId::OpenAi,
+                    model: request.model,
+                    output: vec![OutputItem::Message(Message::new(Role::Assistant, "retry ok"))],
+                    stop_reason: StopReason::EndTurn,
+                    usage: TokenUsage {
+                        input_tokens: 2,
+                        output_tokens: 2,
+                        total_tokens: 4,
+                    },
+                })
+            })
+        }
+
+        fn stream<'a>(
+            &'a self,
+            _request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+            Box::pin(async {
+                Err(fprovider::ProviderError::invalid_request(
+                    "not used for flaky provider",
+                ))
             })
         }
     }
@@ -693,5 +872,87 @@ mod tests {
         let requests = provider.requests.lock().expect("requests lock");
         assert_eq!(requests.len(), 2);
         assert_eq!(requests[1].tool_results.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn run_turn_retries_provider_completion_using_policy() {
+        let provider = Arc::new(FlakyProvider::new());
+        let policy = ChatPolicy {
+            max_tool_round_trips: 0,
+            default_temperature: None,
+            default_max_tokens: None,
+            provider_retry_policy: RetryPolicy {
+                max_attempts: 2,
+                initial_backoff: Duration::from_millis(0),
+                max_backoff: Duration::from_millis(0),
+                backoff_multiplier: 1.0,
+            },
+        };
+
+        let service = ChatService::builder(provider.clone()).policy(policy).build();
+        let session = ChatSession::new("s7", ProviderId::OpenAi, "gpt-4o-mini");
+
+        let result = service
+            .run_turn(ChatTurnRequest::new(session, "hello"))
+            .await
+            .expect("retry should succeed");
+        assert_eq!(result.assistant_message, "retry ok");
+
+        let attempts = provider.attempts.lock().expect("attempt lock");
+        assert_eq!(*attempts, 2);
+    }
+
+    #[tokio::test]
+    async fn run_turn_marks_limit_reached_when_tool_cap_prevents_execution() {
+        let provider = Arc::new(FakeProvider::new());
+        let runtime = Arc::new(FakeToolRuntime);
+        let service = ChatService::builder(provider)
+            .tool_runtime(runtime)
+            .max_tool_round_trips(0)
+            .build();
+
+        let session = ChatSession::new("s8", ProviderId::OpenAi, "gpt-4o-mini");
+        let result = service
+            .run_turn(ChatTurnRequest::new(session, "hello"))
+            .await
+            .expect("turn should succeed");
+
+        assert!(result.tool_round_limit_reached);
+        assert_eq!(result.tool_calls.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn stream_turn_executes_tools_and_emits_tool_events() {
+        let provider = Arc::new(FakeProvider::new());
+        let runtime = Arc::new(FakeToolRuntime);
+        let service = ChatService::builder(provider)
+            .tool_runtime(runtime)
+            .max_tool_round_trips(2)
+            .build();
+
+        let session = ChatSession::new("s9", ProviderId::OpenAi, "gpt-4o-mini");
+        let mut stream = service
+            .stream_turn(ChatTurnRequest::new(session, "hello").enable_streaming())
+            .await
+            .expect("stream should start");
+
+        let mut started = 0;
+        let mut finished = 0;
+        let mut final_result = None;
+
+        while let Some(event) = stream.next().await {
+            match event.expect("event should be ok") {
+                ChatEvent::ToolExecutionStarted(_) => started += 1,
+                ChatEvent::ToolExecutionFinished(_) => finished += 1,
+                ChatEvent::TurnComplete(result) => final_result = Some(result),
+                _ => {}
+            }
+        }
+
+        assert_eq!(started, 1);
+        assert_eq!(finished, 1);
+        let final_result = final_result.expect("turn complete expected");
+        assert_eq!(final_result.assistant_message, "tool stream answer");
+        assert!(!final_result.tool_round_limit_reached);
     }
 }
