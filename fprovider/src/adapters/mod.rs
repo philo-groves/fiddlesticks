@@ -1,3 +1,5 @@
+//! Feature-gated provider adapter modules.
+
 #[cfg(feature = "provider-opencode-zen")]
 pub mod opencode_zen;
 

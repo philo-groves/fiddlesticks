@@ -1,3 +1,5 @@
+//! Provider-agnostic request, response, and message model types.
+
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 

@@ -1,3 +1,5 @@
+//! OpenAI HTTP payload serde models and conversion helpers.
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

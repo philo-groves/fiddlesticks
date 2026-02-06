@@ -1,3 +1,5 @@
+//! Provider registry for runtime provider lookup and swapping.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

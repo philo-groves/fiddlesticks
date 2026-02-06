@@ -1,3 +1,5 @@
+//! OpenAI adapter types and provider-agnostic conversion logic.
+
 use std::fmt::Formatter;
 
 use crate::{

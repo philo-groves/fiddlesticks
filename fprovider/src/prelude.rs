@@ -1,3 +1,5 @@
+//! Common `fprovider` imports for downstream crates.
+
 pub use crate::{
     BoxedEventStream, Message, ModelEventStream, ModelProvider, ModelRequest, ModelRequestBuilder,
     ModelResponse, OutputItem, ProviderError, ProviderErrorKind, ProviderId, ProviderRegistry,

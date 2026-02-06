@@ -1,3 +1,5 @@
+//! Streaming event contracts and in-memory stream utilities.
+
 use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};

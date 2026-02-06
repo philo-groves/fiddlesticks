@@ -1,3 +1,5 @@
+//! Shared provider error kinds and error value helpers.
+
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 

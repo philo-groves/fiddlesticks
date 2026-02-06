@@ -1,1 +1,1 @@
-// Provider adapter lives here when `provider-claude` is enabled.
+//! Claude adapter entrypoint (implementation pending).

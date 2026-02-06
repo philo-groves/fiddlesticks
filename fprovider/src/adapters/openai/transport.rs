@@ -1,3 +1,5 @@
+//! OpenAI transport trait and reqwest-based HTTP implementation.
+
 use std::collections::BTreeMap;
 
 use futures_util::StreamExt;

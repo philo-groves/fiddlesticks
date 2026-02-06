@@ -1,3 +1,5 @@
+//! Secure in-memory credential and browser-session management.
+
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 use std::time::SystemTime;

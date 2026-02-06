@@ -1,3 +1,5 @@
+//! Crate entrypoint that wires modules and public re-exports.
+
 mod credentials;
 pub mod adapters;
 mod error;

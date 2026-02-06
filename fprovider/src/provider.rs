@@ -1,3 +1,5 @@
+//! Core async provider trait and future alias.
+
 use std::future::Future;
 use std::pin::Pin;
 

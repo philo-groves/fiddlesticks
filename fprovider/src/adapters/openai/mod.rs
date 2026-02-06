@@ -1,3 +1,5 @@
+//! OpenAI adapter module split by responsibility.
+
 mod auth;
 mod provider;
 mod serde_api;

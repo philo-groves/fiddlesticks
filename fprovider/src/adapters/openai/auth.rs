@@ -1,3 +1,5 @@
+//! OpenAI-specific credential helpers and auth resolution policy.
+
 use std::time::SystemTime;
 
 use crate::{BrowserLoginSession, ProviderError, ProviderId, SecureCredentialManager};

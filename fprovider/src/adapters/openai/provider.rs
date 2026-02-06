@@ -1,3 +1,5 @@
+//! OpenAI provider implementation over transport and shared models.
+
 use std::sync::Arc;
 
 use crate::{

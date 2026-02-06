@@ -1,3 +1,5 @@
+//! Focused unit tests for OpenAI adapter internals.
+
 #![cfg(test)]
 
 use std::sync::Arc;
