@@ -74,6 +74,7 @@ async fn run_chat(provider: Arc<dyn fprovider::ModelProvider>) -> Result<(), Cha
 - `ChatPolicy::default()` is applied unless overridden
 - per-turn values are merged with service defaults (`ChatTurnRequest` values win)
 - provider retries default to `RetryPolicy::default()` and can be overridden
+- `ChatTurnRequest::builder(...)` provides turn-level ergonomics for overrides
 
 ```rust
 use std::sync::Arc;
@@ -103,6 +104,17 @@ let options = ChatTurnOptions {
 
 let request = ChatTurnRequest::new(session, "Explain this quickly")
     .with_options(options);
+```
+
+Or use the builder for symmetry with `ChatService::builder(...)`:
+
+```rust
+use fchat::prelude::*;
+
+let request = ChatTurnRequest::builder(session, "Explain this quickly")
+    .temperature(0.7)
+    .max_tokens(120)
+    .build();
 ```
 
 ## Streaming usage
@@ -146,6 +158,7 @@ Current streaming semantics:
 - tool lifecycle events are emitted (`ToolExecutionStarted`, `ToolExecutionFinished`).
 - Transcript persistence still occurs before `TurnComplete` is emitted.
 - Events are forwarded as they arrive from the provider stream.
+- Stream acquisition uses retry policy; once a stream is established, event failures are surfaced immediately.
 
 ## Tool loop usage (`ftooling` integration)
 
@@ -199,6 +212,7 @@ Tool loop semantics:
 - `ChatTurnRequest`: user input + per-turn model params
 - `ChatTurnResult`: assistant text + tool calls + stop reason + usage
 - `ChatTurnResult`: includes `tool_round_limit_reached` for cap visibility
+- `ChatTurnRequestBuilder`: ergonomic builder for per-turn options
 - `ChatEvent`: streaming event envelope (`TextDelta`, `ToolCallDelta`, `ToolExecutionStarted`, `ToolExecutionFinished`, `AssistantMessageComplete`, `ToolRoundLimitReached`, `TurnComplete`)
 - `ChatEventStream`: stream alias for chat event consumers
 - `ConversationStore`: async conversation history contract
@@ -224,3 +238,11 @@ Tool errors from `ftooling` are mapped into `ChatErrorKind::Tooling`.
 - `phase`: where the failure occurred (`Provider`, `Tooling`, `Storage`, `Streaming`, etc.)
 - `source`: source error kind (`ProviderErrorKind` or `ToolErrorKind`)
 - helper methods: `is_retryable()` and `is_user_error()`
+
+`phase` values are stable API hints for where the failure happened:
+
+- `RequestValidation`
+- `Provider`
+- `Streaming`
+- `Tooling`
+- `Storage`

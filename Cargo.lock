@@ -145,6 +145,7 @@ dependencies = [
  "fprovider",
  "futures-timer",
  "futures-util",
+ "serde_json",
  "tokio",
 ]
 

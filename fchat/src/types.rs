@@ -46,7 +46,18 @@ pub struct ChatTurnOptions {
     pub stream: bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChatTurnRequestBuilder {
+    session: ChatSession,
+    user_input: String,
+    options: ChatTurnOptions,
+}
+
 impl ChatTurnRequest {
+    pub fn builder(session: ChatSession, user_input: impl Into<String>) -> ChatTurnRequestBuilder {
+        ChatTurnRequestBuilder::new(session, user_input)
+    }
+
     pub fn new(session: ChatSession, user_input: impl Into<String>) -> Self {
         Self {
             session,
@@ -77,6 +88,44 @@ impl ChatTurnRequest {
         self.max_tokens = options.max_tokens;
         self.stream = options.stream;
         self
+    }
+}
+
+impl ChatTurnRequestBuilder {
+    pub fn new(session: ChatSession, user_input: impl Into<String>) -> Self {
+        Self {
+            session,
+            user_input: user_input.into(),
+            options: ChatTurnOptions::default(),
+        }
+    }
+
+    pub fn temperature(mut self, temperature: f32) -> Self {
+        self.options.temperature = Some(temperature);
+        self
+    }
+
+    pub fn max_tokens(mut self, max_tokens: u32) -> Self {
+        self.options.max_tokens = Some(max_tokens);
+        self
+    }
+
+    pub fn streaming(mut self, stream: bool) -> Self {
+        self.options.stream = stream;
+        self
+    }
+
+    pub fn enable_streaming(self) -> Self {
+        self.streaming(true)
+    }
+
+    pub fn options(mut self, options: ChatTurnOptions) -> Self {
+        self.options = options;
+        self
+    }
+
+    pub fn build(self) -> ChatTurnRequest {
+        ChatTurnRequest::new(self.session, self.user_input).with_options(self.options)
     }
 }
 

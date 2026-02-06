@@ -98,11 +98,30 @@ async fn run_once(registry: ToolRegistry) -> Result<ToolExecutionResult, ToolErr
 }
 ```
 
+## Argument helper utilities
+
+`ftooling` exposes lightweight JSON helpers so tool closures do not need to repeat parsing boilerplate:
+
+- `parse_json_value(args_json)`
+- `parse_json_object(args_json)`
+- `required_string(&args, key)`
+
+```rust
+use ftooling::prelude::*;
+
+let args = parse_json_object("{\"query\":\"rust\"}")?;
+let query = required_string(&args, "query")?;
+let _ = query;
+```
+
 ## Hooks and timeout
 
 - `DefaultToolRuntime::with_hooks(...)` attaches runtime lifecycle hooks
 - `DefaultToolRuntime::with_timeout(...)` enforces per-call timeout
 - Hook events include start/success/failure with elapsed duration
+- Hook order contract:
+  1) `on_execution_start`
+  2) exactly one of `on_execution_success` or `on_execution_failure`
 
 ```rust
 use std::sync::Arc;
@@ -133,6 +152,8 @@ let _ = runtime;
 - `retryable` for policy decisions
 - optional `tool_name` and `tool_call_id` for richer context
 - helper methods: `is_retryable()`, `is_user_error()`
+
+When errors are produced by `DefaultToolRuntime`, `tool_name` and `tool_call_id` are populated automatically.
 
 ## Integration with `fchat`
 

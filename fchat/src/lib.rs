@@ -9,7 +9,7 @@ pub mod prelude {
     pub use crate::{
         ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource, ChatEvent, ChatEventStream,
         ChatPolicy, ChatService, ChatServiceBuilder, ChatSession, ChatTurnOptions,
-        ChatTurnRequest, ChatTurnResult,
+        ChatTurnRequest, ChatTurnRequestBuilder, ChatTurnResult,
         ConversationStore, InMemoryConversationStore,
     };
     pub use fcommon::{MetadataMap, SessionId, TraceId};
@@ -23,7 +23,8 @@ pub use error::{ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource};
 pub use service::{ChatPolicy, ChatService, ChatServiceBuilder};
 pub use store::{ConversationStore, InMemoryConversationStore};
 pub use types::{
-    ChatEvent, ChatEventStream, ChatSession, ChatTurnOptions, ChatTurnRequest, ChatTurnResult,
+    ChatEvent, ChatEventStream, ChatSession, ChatTurnOptions, ChatTurnRequest,
+    ChatTurnRequestBuilder, ChatTurnResult,
 };
 pub use fcommon::{MetadataMap, SessionId, TraceId};
 pub use ftooling::{

@@ -665,6 +665,25 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Default)]
+    struct FailingToolRuntime;
+
+    impl ToolRuntime for FailingToolRuntime {
+        fn execute<'a>(
+            &'a self,
+            tool_call: ToolCall,
+            _context: ToolExecutionContext,
+        ) -> ToolFuture<'a, Result<ToolExecutionResult, ftooling::ToolError>> {
+            Box::pin(async move {
+                Err(
+                    ftooling::ToolError::invalid_arguments("missing required field")
+                        .with_tool_name(tool_call.name)
+                        .with_tool_call_id(tool_call.id),
+                )
+            })
+        }
+    }
+
     #[derive(Debug)]
     struct FlakyProvider {
         attempts: Mutex<u32>,
@@ -716,6 +735,100 @@ mod tests {
                 Err(fprovider::ProviderError::invalid_request(
                     "not used for flaky provider",
                 ))
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    struct StreamErrorProvider;
+
+    impl ModelProvider for StreamErrorProvider {
+        fn id(&self) -> ProviderId {
+            ProviderId::OpenAi
+        }
+
+        fn complete<'a>(
+            &'a self,
+            _request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<ModelResponse, fprovider::ProviderError>> {
+            Box::pin(async {
+                Err(fprovider::ProviderError::invalid_request(
+                    "complete not used for stream error provider",
+                ))
+            })
+        }
+
+        fn stream<'a>(
+            &'a self,
+            _request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+            Box::pin(async {
+                let stream = VecEventStream::new(vec![
+                    Ok(StreamEvent::TextDelta("partial".to_string())),
+                    Err(fprovider::ProviderError::transport("stream interrupted")),
+                ]);
+                Ok(Box::pin(stream) as fprovider::BoxedEventStream<'a>)
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    struct FlakyStreamProvider {
+        attempts: Mutex<u32>,
+    }
+
+    impl FlakyStreamProvider {
+        fn new() -> Self {
+            Self {
+                attempts: Mutex::new(0),
+            }
+        }
+    }
+
+    impl ModelProvider for FlakyStreamProvider {
+        fn id(&self) -> ProviderId {
+            ProviderId::OpenAi
+        }
+
+        fn complete<'a>(
+            &'a self,
+            _request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<ModelResponse, fprovider::ProviderError>> {
+            Box::pin(async {
+                Err(fprovider::ProviderError::invalid_request(
+                    "complete not used for flaky stream provider",
+                ))
+            })
+        }
+
+        fn stream<'a>(
+            &'a self,
+            request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+            Box::pin(async move {
+                let mut attempts = self.attempts.lock().expect("attempt lock");
+                *attempts += 1;
+                if *attempts == 1 {
+                    return Err(fprovider::ProviderError::timeout("temporary stream timeout"));
+                }
+
+                let response = ModelResponse {
+                    provider: ProviderId::OpenAi,
+                    model: request.model,
+                    output: vec![OutputItem::Message(Message::new(Role::Assistant, "stream retry ok"))],
+                    stop_reason: StopReason::EndTurn,
+                    usage: TokenUsage {
+                        input_tokens: 2,
+                        output_tokens: 2,
+                        total_tokens: 4,
+                    },
+                };
+
+                let stream = VecEventStream::new(vec![
+                    Ok(StreamEvent::TextDelta("stream".to_string())),
+                    Ok(StreamEvent::ResponseComplete(response)),
+                ]);
+                Ok(Box::pin(stream) as fprovider::BoxedEventStream<'a>)
             })
         }
     }
@@ -955,5 +1068,98 @@ mod tests {
         let final_result = final_result.expect("turn complete expected");
         assert_eq!(final_result.assistant_message, "tool stream answer");
         assert!(!final_result.tool_round_limit_reached);
+    }
+
+    #[tokio::test]
+    async fn stream_turn_reports_streaming_phase_errors() {
+        let provider = Arc::new(StreamErrorProvider);
+        let service = ChatService::builder(provider).build();
+        let session = ChatSession::new("s10", ProviderId::OpenAi, "gpt-4o-mini");
+
+        let mut stream = service
+            .stream_turn(ChatTurnRequest::new(session, "hello").enable_streaming())
+            .await
+            .expect("stream should start");
+
+        let first = stream
+            .next()
+            .await
+            .expect("first event should exist")
+            .expect("first event should be ok");
+        assert!(matches!(first, ChatEvent::TextDelta(_)));
+
+        let second = stream
+            .next()
+            .await
+            .expect("error event should exist")
+            .expect_err("second item should be error");
+        assert_eq!(second.phase, Some(ChatErrorPhase::Streaming));
+        assert!(second.is_retryable());
+    }
+
+    #[tokio::test]
+    async fn stream_turn_retries_stream_acquisition_using_policy() {
+        let provider = Arc::new(FlakyStreamProvider::new());
+        let policy = ChatPolicy {
+            max_tool_round_trips: 0,
+            default_temperature: None,
+            default_max_tokens: None,
+            provider_retry_policy: RetryPolicy {
+                max_attempts: 2,
+                initial_backoff: Duration::from_millis(0),
+                max_backoff: Duration::from_millis(0),
+                backoff_multiplier: 1.0,
+            },
+        };
+
+        let service = ChatService::builder(provider.clone()).policy(policy).build();
+        let session = ChatSession::new("s11", ProviderId::OpenAi, "gpt-4o-mini");
+        let mut stream = service
+            .stream_turn(ChatTurnRequest::new(session, "hello").enable_streaming())
+            .await
+            .expect("stream should start");
+
+        let mut saw_turn_complete = false;
+        while let Some(item) = stream.next().await {
+            if matches!(item.expect("event should be ok"), ChatEvent::TurnComplete(_)) {
+                saw_turn_complete = true;
+            }
+        }
+
+        assert!(saw_turn_complete);
+        let attempts = provider.attempts.lock().expect("attempt lock");
+        assert_eq!(*attempts, 2);
+    }
+
+    #[tokio::test]
+    async fn stream_turn_maps_tool_runtime_failures_to_tooling_errors() {
+        let provider = Arc::new(FakeProvider::new());
+        let runtime = Arc::new(FailingToolRuntime);
+        let service = ChatService::builder(provider)
+            .tool_runtime(runtime)
+            .max_tool_round_trips(2)
+            .build();
+
+        let session = ChatSession::new("s12", ProviderId::OpenAi, "gpt-4o-mini");
+        let mut stream = service
+            .stream_turn(ChatTurnRequest::new(session, "hello").enable_streaming())
+            .await
+            .expect("stream should start");
+
+        let mut saw_tool_start = false;
+        while let Some(item) = stream.next().await {
+            match item {
+                Ok(ChatEvent::ToolExecutionStarted(_)) => saw_tool_start = true,
+                Ok(_) => {}
+                Err(error) => {
+                    assert_eq!(error.phase, Some(ChatErrorPhase::Tooling));
+                    assert!(error.is_user_error());
+                    assert!(saw_tool_start);
+                    return;
+                }
+            }
+        }
+
+        panic!("expected tooling error in stream");
     }
 }
