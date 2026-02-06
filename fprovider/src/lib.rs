@@ -6,6 +6,7 @@ mod error;
 mod model;
 pub mod prelude;
 mod provider;
+mod resilience;
 mod registry;
 mod stream;
 
@@ -18,6 +19,9 @@ pub use model::{
     StopReason, TokenUsage, ToolCall, ToolDefinition, ToolResult,
 };
 pub use provider::{ModelProvider, ProviderFuture};
+pub use resilience::{
+    NoopOperationHooks, ProviderOperationHooks, RetryPolicy, execute_with_retry,
+};
 pub use registry::ProviderRegistry;
 pub use stream::{BoxedEventStream, ModelEventStream, StreamEvent, VecEventStream};
 

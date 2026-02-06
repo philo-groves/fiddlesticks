@@ -146,6 +146,13 @@ registry.register(openai);
 `stream(...)` returns a stream implementing `futures_core::Stream<Item = Result<StreamEvent, ProviderError>>`.
 This is provider-agnostic and works with standard async ecosystem helpers.
 
+Stream invariants:
+
+- Events are emitted in provider/source order.
+- Delta events (`TextDelta`, `ToolCallDelta`) can appear zero or more times.
+- Completion milestones (`MessageComplete`, `ResponseComplete`) when present arrive after deltas.
+- Once the stream returns `None`, no additional events are emitted.
+
 ```rust
 use futures_util::StreamExt;
 use fprovider::prelude::*;
@@ -171,6 +178,42 @@ When `provider-openai` is enabled, `OpenAiProvider` resolves credentials in this
 2. Browser session configured via `SecureCredentialManager::set_openai_browser_session`
 
 Browser sessions are only used if no API key is configured. If a browser session has `expires_at` set and the timestamp is in the past, authentication fails with an authentication error instead of falling through to transport calls.
+
+### 8) Standard retry/backoff and operational hooks
+
+`fprovider` exposes provider-agnostic resilience primitives:
+
+- `RetryPolicy`: standardized retry attempt limits and exponential backoff settings
+- `ProviderOperationHooks`: lifecycle hooks for attempts, retries, success, and failure
+- `execute_with_retry(...)`: helper that applies policy + hooks around async operations
+
+Example:
+
+```rust
+use std::time::Duration;
+use fprovider::prelude::*;
+
+let policy = RetryPolicy {
+    max_attempts: 4,
+    initial_backoff: Duration::from_millis(100),
+    max_backoff: Duration::from_secs(2),
+    backoff_multiplier: 2.0,
+};
+
+let hooks = NoopOperationHooks;
+
+let value = execute_with_retry(
+    ProviderId::OpenAi,
+    "complete",
+    &policy,
+    &hooks,
+    |_attempt| async { Ok::<_, ProviderError>("ok") },
+    |_delay| async {},
+)
+.await?;
+
+let _ = value;
+```
 
 ---
 

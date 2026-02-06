@@ -16,6 +16,14 @@ pub enum StreamEvent {
     ResponseComplete(ModelResponse),
 }
 
+/// Provider stream contract.
+///
+/// Invariants for consumers:
+/// - Events are emitted in source order.
+/// - `TextDelta` and `ToolCallDelta` may appear zero or more times.
+/// - `MessageComplete` and `ResponseComplete` are terminal milestones and, when present,
+///   arrive after all related deltas.
+/// - Once the stream yields `None`, it must not yield additional items.
 pub trait ModelEventStream: Stream<Item = Result<StreamEvent, ProviderError>> + Send {}
 
 impl<T> ModelEventStream for T where T: Stream<Item = Result<StreamEvent, ProviderError>> + Send {}
