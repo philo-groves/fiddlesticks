@@ -5,6 +5,9 @@ use crate::{BrowserLoginSession, ProviderError, ProviderId, SecureCredentialMana
 use super::types::OpenAiAuth;
 
 impl SecureCredentialManager {
+    /// Stores an OpenAI API key for provider-authenticated requests.
+    ///
+    /// OpenAI keys are expected to start with `sk-`.
     pub fn set_openai_api_key(&self, api_key: impl Into<String>) -> Result<(), ProviderError> {
         let api_key = api_key.into();
         if !api_key.starts_with("sk-") {
@@ -25,6 +28,11 @@ impl SecureCredentialManager {
     }
 }
 
+/// Resolves OpenAI authentication in strict priority order:
+/// 1) API key, 2) browser session.
+///
+/// If a browser session is selected and has expired, this returns
+/// `ProviderErrorKind::Authentication` without calling transport code.
 pub(crate) fn resolve_openai_auth(
     credentials: &SecureCredentialManager,
 ) -> Result<OpenAiAuth, ProviderError> {

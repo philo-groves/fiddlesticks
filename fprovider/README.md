@@ -85,14 +85,11 @@ fprovider = { path = "../fprovider", features = ["provider-openai"] }
 ```rust
 use fprovider::{Message, ModelRequest, Role};
 
-let request = ModelRequest::new(
-    "gpt-4o-mini",
-    vec![Message::new(Role::User, "Summarize this file")],
-)
-.with_temperature(0.2)
-.with_max_tokens(512);
-
-request.validate()?;
+let request = ModelRequest::builder("gpt-4o-mini")
+    .message(Message::new(Role::User, "Summarize this file"))
+    .temperature(0.2)
+    .max_tokens(512)
+    .build()?;
 ```
 
 ### 3) Depend on traits, not SDK types
@@ -146,7 +143,34 @@ registry.register(openai);
 
 ### 6) Streaming consumption
 
-`stream(...)` returns provider-agnostic `StreamEvent` values (`TextDelta`, `ToolCallDelta`, `MessageComplete`, `ResponseComplete`), so higher crates can handle streaming once and reuse it across providers.
+`stream(...)` returns a stream implementing `futures_core::Stream<Item = Result<StreamEvent, ProviderError>>`.
+This is provider-agnostic and works with standard async ecosystem helpers.
+
+```rust
+use futures_util::StreamExt;
+use fprovider::prelude::*;
+
+let mut events = provider.stream(request).await?;
+while let Some(event) = events.next().await {
+    match event? {
+        StreamEvent::TextDelta(delta) => {
+            let _ = delta;
+        }
+        StreamEvent::ToolCallDelta(_) => {}
+        StreamEvent::MessageComplete(_) => {}
+        StreamEvent::ResponseComplete(_) => {}
+    }
+}
+```
+
+### 7) OpenAI auth precedence policy
+
+When `provider-openai` is enabled, `OpenAiProvider` resolves credentials in this strict order:
+
+1. API key configured via `SecureCredentialManager::set_openai_api_key`
+2. Browser session configured via `SecureCredentialManager::set_openai_browser_session`
+
+Browser sessions are only used if no API key is configured. If a browser session has `expires_at` set and the timestamp is in the past, authentication fails with an authentication error instead of falling through to transport calls.
 
 ---
 

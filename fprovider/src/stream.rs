@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use futures_core::Stream;
+
 use crate::{Message, ModelResponse, ProviderError, ToolCall};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -12,14 +14,11 @@ pub enum StreamEvent {
     ResponseComplete(ModelResponse),
 }
 
-pub trait ModelEventStream {
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<StreamEvent, ProviderError>>>;
-}
+pub trait ModelEventStream: Stream<Item = Result<StreamEvent, ProviderError>> + Send {}
 
-pub type BoxedEventStream<'a> = Pin<Box<dyn ModelEventStream + Send + 'a>>;
+impl<T> ModelEventStream for T where T: Stream<Item = Result<StreamEvent, ProviderError>> + Send {}
+
+pub type BoxedEventStream<'a> = Pin<Box<dyn ModelEventStream + 'a>>;
 
 #[derive(Debug)]
 pub struct VecEventStream {
@@ -34,7 +33,9 @@ impl VecEventStream {
     }
 }
 
-impl ModelEventStream for VecEventStream {
+impl Stream for VecEventStream {
+    type Item = Result<StreamEvent, ProviderError>;
+
     fn poll_next(
         mut self: Pin<&mut Self>,
         _cx: &mut Context<'_>,

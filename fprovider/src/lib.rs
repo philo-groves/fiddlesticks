@@ -12,8 +12,8 @@ pub use credentials::{
 };
 pub use error::{ProviderError, ProviderErrorKind};
 pub use model::{
-    Message, ModelRequest, ModelResponse, OutputItem, ProviderId, Role, StopReason, TokenUsage,
-    ToolCall, ToolDefinition, ToolResult,
+    Message, ModelRequest, ModelRequestBuilder, ModelResponse, OutputItem, ProviderId, Role,
+    StopReason, TokenUsage, ToolCall, ToolDefinition, ToolResult,
 };
 pub use provider::{ModelProvider, ProviderFuture};
 pub use registry::ProviderRegistry;
@@ -21,6 +21,7 @@ pub use stream::{BoxedEventStream, ModelEventStream, StreamEvent, VecEventStream
 
 #[cfg(test)]
 mod tests {
+    use futures_core::Stream;
     use super::*;
     use std::future::Future;
     use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
@@ -114,6 +115,28 @@ mod tests {
         assert!(valid.validate().is_ok());
         assert!(valid.stream);
         assert_eq!(valid.metadata.get("trace_id"), Some(&"abc".to_string()));
+    }
+
+    #[test]
+    fn model_request_builder_validates_before_building() {
+        let err = ModelRequest::builder("gpt-4o-mini")
+            .temperature(3.0)
+            .build()
+            .expect_err("builder should fail without messages and with bad temperature");
+        assert_eq!(err.kind, ProviderErrorKind::InvalidRequest);
+
+        let request = ModelRequest::builder("gpt-4o-mini")
+            .message(Message::new(Role::User, "hello"))
+            .temperature(0.2)
+            .max_tokens(200)
+            .metadata("trace_id", "abc")
+            .enable_streaming()
+            .build()
+            .expect("builder should produce valid request");
+
+        assert_eq!(request.messages.len(), 1);
+        assert_eq!(request.metadata.get("trace_id"), Some(&"abc".to_string()));
+        assert!(request.stream);
     }
 
     #[test]
