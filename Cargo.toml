@@ -2,7 +2,8 @@
 resolver = "3"
 members = [
     "fchat",
-    "fcommon",
+    "fcommon", 
+    "fharness",
     "fmemory",
     "fprovider",
     "ftooling"
