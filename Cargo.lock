@@ -113,6 +113,10 @@ dependencies = [
 [[package]]
 name = "ftooling"
 version = "0.1.0"
+dependencies = [
+ "fprovider",
+ "tokio",
+]
 
 [[package]]
 name = "futures-channel"
