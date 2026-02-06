@@ -1,0 +1,9 @@
+[workspace]
+resolver = "3"
+members = [
+    "fchat",
+    "fcommon",
+    "fmemory",
+    "fprovider",
+    "ftooling"
+]
