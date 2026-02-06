@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+fcommon = { path = "../fcommon" }
+fmemory = { path = "../fmemory" }
+
+[dev-dependencies]
+tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }

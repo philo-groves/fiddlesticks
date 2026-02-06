@@ -108,6 +108,11 @@ version = "0.1.0"
 [[package]]
 name = "fharness"
 version = "0.1.0"
+dependencies = [
+ "fcommon",
+ "fmemory",
+ "tokio",
+]
 
 [[package]]
 name = "find-msvc-tools"
