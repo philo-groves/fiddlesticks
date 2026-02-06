@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex};
 
 use fprovider::adapters::opencode_zen::OpenCodeZenProvider;
 use fprovider::adapters::openai::{
-    OpenAiAssistantMessage, OpenAiAuth, OpenAiFinishReason, OpenAiRequest, OpenAiResponse,
-    OpenAiStreamChunk, OpenAiToolCall, OpenAiTransport, OpenAiUsage,
+    OpenAiAssistantMessage, OpenAiAuth, OpenAiChunkStream, OpenAiFinishReason, OpenAiRequest,
+    OpenAiResponse, OpenAiStreamChunk, OpenAiToolCall, OpenAiTransport, OpenAiUsage,
 };
 use fprovider::{
     Message, ModelProvider, ModelRequest, ProviderError, ProviderFuture, ProviderId, Role,
@@ -58,7 +58,7 @@ impl OpenAiTransport for FakeTransport {
         &'a self,
         request: OpenAiRequest,
         auth: OpenAiAuth,
-    ) -> ProviderFuture<'a, Result<Vec<OpenAiStreamChunk>, ProviderError>> {
+    ) -> ProviderFuture<'a, Result<OpenAiChunkStream<'a>, ProviderError>> {
         Box::pin(async move {
             *self.captured_request.lock().expect("request lock") = Some(request);
             *self.captured_auth.lock().expect("auth lock") = Some(match auth {
@@ -66,7 +66,7 @@ impl OpenAiTransport for FakeTransport {
                 OpenAiAuth::BrowserSession(value) => CapturedAuth(value),
             });
 
-            Ok(vec![
+            let output = futures_util::stream::iter(vec![
                 OpenAiStreamChunk::TextDelta("hello".to_string()),
                 OpenAiStreamChunk::ResponseComplete(OpenAiResponse {
                     model: "kimi-k2.5".to_string(),
@@ -81,7 +81,11 @@ impl OpenAiTransport for FakeTransport {
                         total_tokens: 2,
                     },
                 }),
-            ])
+            ]
+            .into_iter()
+            .map(Ok));
+
+            Ok(Box::pin(output) as OpenAiChunkStream<'a>)
         })
     }
 }

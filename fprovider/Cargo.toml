@@ -11,12 +11,14 @@ provider-opencode-zen = [
     "dep:serde",
     "dep:serde_json",
     "dep:futures-util",
+    "dep:async-stream",
 ]
 provider-openai = [
     "dep:reqwest",
     "dep:serde",
     "dep:serde_json",
     "dep:futures-util",
+    "dep:async-stream",
 ]
 provider-claude = []
 
@@ -24,6 +26,7 @@ provider-claude = []
 fcommon = { path = "../fcommon" }
 futures-core = "0.3"
 futures-util = { version = "0.3", optional = true }
+async-stream = { version = "0.3", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }

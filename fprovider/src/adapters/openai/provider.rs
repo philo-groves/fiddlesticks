@@ -2,9 +2,12 @@
 
 use std::sync::Arc;
 
+use async_stream::try_stream;
+use futures_util::StreamExt;
+
 use crate::{
     BoxedEventStream, ModelProvider, ModelRequest, ModelResponse, ProviderError, ProviderFuture,
-    ProviderId, SecureCredentialManager, StreamEvent, VecEventStream,
+    ProviderId, SecureCredentialManager, StreamEvent,
 };
 
 use super::auth::resolve_openai_auth;
@@ -91,15 +94,14 @@ impl ModelProvider for OpenAiProvider {
             request.validate()?;
             let auth = resolve_openai_auth(&self.credentials)?;
             let openai_request = self.build_openai_request(request, true);
-            let chunks = self.transport.stream(openai_request, auth).await?;
+            let mut chunks = self.transport.stream(openai_request, auth).await?;
 
-            let events = chunks
-                .into_iter()
-                .map(StreamEvent::from)
-                .map(Ok)
-                .collect::<Vec<_>>();
+            let stream = try_stream! {
+                while let Some(chunk) = chunks.next().await {
+                    yield StreamEvent::from(chunk?);
+                }
+            };
 
-            let stream = VecEventStream::new(events);
             Ok(Box::pin(stream) as BoxedEventStream<'a>)
         })
     }

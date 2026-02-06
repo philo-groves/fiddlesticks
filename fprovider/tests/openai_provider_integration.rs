@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use fprovider::adapters::openai::{
-    OpenAiAuth, OpenAiProvider, OpenAiRequest, OpenAiResponse, OpenAiStreamChunk,
+    OpenAiAuth, OpenAiChunkStream, OpenAiProvider, OpenAiRequest, OpenAiResponse,
     OpenAiTransport,
 };
 use fprovider::{
@@ -44,8 +44,11 @@ impl OpenAiTransport for IntegrationFakeTransport {
         &'a self,
         _request: OpenAiRequest,
         _auth: OpenAiAuth,
-    ) -> ProviderFuture<'a, Result<Vec<OpenAiStreamChunk>, ProviderError>> {
-        Box::pin(async { Ok(Vec::new()) })
+    ) -> ProviderFuture<'a, Result<OpenAiChunkStream<'a>, ProviderError>> {
+        Box::pin(async {
+            let output = futures_util::stream::iter(std::iter::empty::<Result<_, _>>());
+            Ok(Box::pin(output) as OpenAiChunkStream<'a>)
+        })
     }
 }
 

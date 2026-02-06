@@ -3,7 +3,8 @@
 use std::sync::{Arc, Mutex};
 
 use fprovider::adapters::openai::{
-    OpenAiAuth, OpenAiProvider, OpenAiRequest, OpenAiResponse, OpenAiStreamChunk,
+    OpenAiAuth, OpenAiChunkStream, OpenAiProvider, OpenAiRequest, OpenAiResponse,
+    OpenAiStreamChunk,
     OpenAiTransport,
 };
 use fprovider::{
@@ -57,7 +58,7 @@ impl OpenAiTransport for FakeTransport {
         &'a self,
         request: OpenAiRequest,
         auth: OpenAiAuth,
-    ) -> ProviderFuture<'a, Result<Vec<OpenAiStreamChunk>, ProviderError>> {
+    ) -> ProviderFuture<'a, Result<OpenAiChunkStream<'a>, ProviderError>> {
         Box::pin(async move {
             *self.captured_request.lock().expect("request lock") = Some(request);
             *self.captured_auth.lock().expect("auth lock") = Some(match auth {
@@ -65,10 +66,14 @@ impl OpenAiTransport for FakeTransport {
                 OpenAiAuth::BrowserSession(value) => CapturedAuth("browser_session", value),
             });
 
-            Ok(vec![
+            let output = futures_util::stream::iter(vec![
                 OpenAiStreamChunk::TextDelta("hello".to_string()),
                 OpenAiStreamChunk::TextDelta(" world".to_string()),
-            ])
+            ]
+            .into_iter()
+            .map(Ok));
+
+            Ok(Box::pin(output) as OpenAiChunkStream<'a>)
         })
     }
 }

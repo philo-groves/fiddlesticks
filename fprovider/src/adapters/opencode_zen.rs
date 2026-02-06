@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use async_stream::try_stream;
+use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 
@@ -11,7 +13,7 @@ use crate::adapters::openai::{
 };
 use crate::{
     BoxedEventStream, Message, ModelProvider, ModelRequest, ModelResponse, ProviderError,
-    ProviderFuture, ProviderId, Role, SecureCredentialManager, StreamEvent, VecEventStream,
+    ProviderFuture, ProviderId, Role, SecureCredentialManager, StreamEvent,
 };
 
 pub const OPENCODE_ZEN_BASE_URL: &str = "https://opencode.ai/zen/v1";
@@ -109,15 +111,14 @@ impl ModelProvider for OpenCodeZenProvider {
             request.validate()?;
             let auth = OpenAiAuth::ApiKey(resolve_zen_api_key(&self.credentials)?);
             let zen_request = self.build_request(request, true);
-            let chunks = self.transport.stream(zen_request, auth).await?;
+            let mut chunks = self.transport.stream(zen_request, auth).await?;
 
-            let events = chunks
-                .into_iter()
-                .map(map_stream_chunk)
-                .map(Ok)
-                .collect::<Vec<_>>();
+            let stream = try_stream! {
+                while let Some(chunk) = chunks.next().await {
+                    yield map_stream_chunk(chunk?);
+                }
+            };
 
-            let stream = VecEventStream::new(events);
             Ok(Box::pin(stream) as BoxedEventStream<'a>)
         })
     }

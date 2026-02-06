@@ -4,13 +4,15 @@
 
 use std::sync::Arc;
 
+use futures_util::stream;
+
 use crate::{Message, ModelRequest, ProviderError, ProviderFuture, Role, SecureCredentialManager, ToolResult};
 
 use super::provider::OpenAiProvider;
 use super::serde_api::parse_finish_reason;
-use super::transport::OpenAiTransport;
+use super::transport::{OpenAiChunkStream, OpenAiTransport};
 use super::types::{
-    OpenAiAuth, OpenAiFinishReason, OpenAiRequest, OpenAiResponse, OpenAiRole, OpenAiStreamChunk,
+    OpenAiAuth, OpenAiFinishReason, OpenAiRequest, OpenAiResponse, OpenAiRole,
 };
 
 #[derive(Debug)]
@@ -29,8 +31,11 @@ impl OpenAiTransport for NoopTransport {
         &'a self,
         _request: OpenAiRequest,
         _auth: OpenAiAuth,
-    ) -> ProviderFuture<'a, Result<Vec<OpenAiStreamChunk>, ProviderError>> {
-        Box::pin(async { Err(ProviderError::other("not used")) })
+    ) -> ProviderFuture<'a, Result<OpenAiChunkStream<'a>, ProviderError>> {
+        Box::pin(async {
+            let output = stream::iter(vec![Err(ProviderError::other("not used"))]);
+            Ok(Box::pin(output) as OpenAiChunkStream<'a>)
+        })
     }
 }
 

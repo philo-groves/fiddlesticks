@@ -1,7 +1,10 @@
 //! OpenAI transport trait and reqwest-based HTTP implementation.
 
 use std::collections::BTreeMap;
+use std::pin::Pin;
 
+use async_stream::try_stream;
+use futures_core::Stream;
 use futures_util::StreamExt;
 use reqwest::{Client, Response, StatusCode};
 
@@ -15,6 +18,8 @@ use super::types::{
     OpenAiStreamChunk, OpenAiToolCall, OpenAiUsage,
 };
 
+pub type OpenAiChunkStream<'a> = Pin<Box<dyn Stream<Item = Result<OpenAiStreamChunk, ProviderError>> + Send + 'a>>;
+
 pub trait OpenAiTransport: Send + Sync + std::fmt::Debug {
     fn complete<'a>(
         &'a self,
@@ -26,7 +31,7 @@ pub trait OpenAiTransport: Send + Sync + std::fmt::Debug {
         &'a self,
         request: OpenAiRequest,
         auth: OpenAiAuth,
-    ) -> ProviderFuture<'a, Result<Vec<OpenAiStreamChunk>, ProviderError>>;
+    ) -> ProviderFuture<'a, Result<OpenAiChunkStream<'a>, ProviderError>>;
 }
 
 #[derive(Debug, Clone)]
@@ -125,7 +130,7 @@ impl OpenAiTransport for OpenAiHttpTransport {
         &'a self,
         mut request: OpenAiRequest,
         auth: OpenAiAuth,
-    ) -> ProviderFuture<'a, Result<Vec<OpenAiStreamChunk>, ProviderError>> {
+    ) -> ProviderFuture<'a, Result<OpenAiChunkStream<'a>, ProviderError>> {
         Box::pin(async move {
             request.stream = true;
             let model_for_fallback = request.model.clone();
@@ -144,110 +149,111 @@ impl OpenAiTransport for OpenAiHttpTransport {
                 return Err(Self::parse_error(response).await);
             }
 
-            let mut chunks = response.bytes_stream();
-            let mut sse_buffer = String::new();
-            let mut events = Vec::new();
-            let mut finished = false;
-            let mut content = String::new();
-            let mut tool_calls: BTreeMap<u32, OpenAiToolCall> = BTreeMap::new();
-            let mut model = None::<String>;
-            let mut finish_reason = OpenAiFinishReason::Other;
+            let stream = try_stream! {
+                let mut chunks = response.bytes_stream();
+                let mut sse_buffer = String::new();
+                let mut finished = false;
+                let mut content = String::new();
+                let mut tool_calls: BTreeMap<u32, OpenAiToolCall> = BTreeMap::new();
+                let mut model = None::<String>;
+                let mut finish_reason = OpenAiFinishReason::Other;
 
-            while let Some(item) = chunks.next().await {
-                let bytes = item.map_err(|err| ProviderError::transport(err.to_string()))?;
-                let text = std::str::from_utf8(&bytes)
-                    .map_err(|err| ProviderError::transport(err.to_string()))?;
-                sse_buffer.push_str(text);
+                while let Some(item) = chunks.next().await {
+                    let bytes = item.map_err(|err| ProviderError::transport(err.to_string()))?;
+                    let text = std::str::from_utf8(&bytes)
+                        .map_err(|err| ProviderError::transport(err.to_string()))?;
+                    sse_buffer.push_str(text);
 
-                while let Some(newline_index) = sse_buffer.find('\n') {
-                    let line = sse_buffer.drain(..=newline_index).collect::<String>();
-                    let line = line.trim();
+                    while let Some(newline_index) = sse_buffer.find('\n') {
+                        let line = sse_buffer.drain(..=newline_index).collect::<String>();
+                        let line = line.trim();
 
-                    if !line.starts_with("data:") {
-                        continue;
+                        if !line.starts_with("data:") {
+                            continue;
+                        }
+
+                        let payload = line.trim_start_matches("data:").trim();
+                        if payload == "[DONE]" {
+                            finished = true;
+                            break;
+                        }
+
+                        let parsed: OpenAiApiStreamResponse = serde_json::from_str(payload)
+                            .map_err(|err| ProviderError::transport(err.to_string()))?;
+
+                        if model.is_none() {
+                            model = Some(parsed.model.clone());
+                        }
+
+                        if let Some(choice) = parsed.choices.first() {
+                            if let Some(delta_content) = &choice.delta.content {
+                                if !delta_content.is_empty() {
+                                    content.push_str(delta_content);
+                                    yield OpenAiStreamChunk::TextDelta(delta_content.clone());
+                                }
+                            }
+
+                            if let Some(delta_tool_calls) = &choice.delta.tool_calls {
+                                for delta_call in delta_tool_calls {
+                                    let index = delta_call.index.unwrap_or(0);
+                                    let entry =
+                                        tool_calls.entry(index).or_insert_with(|| OpenAiToolCall {
+                                            id: delta_call
+                                                .id
+                                                .clone()
+                                                .unwrap_or_else(|| format!("tool_call_{index}")),
+                                            name: String::new(),
+                                            arguments: String::new(),
+                                        });
+
+                                    if let Some(id) = &delta_call.id {
+                                        entry.id = id.clone();
+                                    }
+
+                                    if let Some(function) = &delta_call.function {
+                                        if let Some(name) = &function.name {
+                                            entry.name = name.clone();
+                                        }
+
+                                        if let Some(arguments) = &function.arguments {
+                                            entry.arguments.push_str(arguments);
+                                        }
+                                    }
+
+                                    yield OpenAiStreamChunk::ToolCallDelta(entry.clone());
+                                }
+                            }
+
+                            if choice.finish_reason.is_some() {
+                                finish_reason = parse_finish_reason(choice.finish_reason.as_deref());
+                            }
+                        }
                     }
 
-                    let payload = line.trim_start_matches("data:").trim();
-                    if payload == "[DONE]" {
-                        finished = true;
+                    if finished {
                         break;
                     }
-
-                    let parsed: OpenAiApiStreamResponse = serde_json::from_str(payload)
-                        .map_err(|err| ProviderError::transport(err.to_string()))?;
-
-                    if model.is_none() {
-                        model = Some(parsed.model.clone());
-                    }
-
-                    if let Some(choice) = parsed.choices.first() {
-                        if let Some(delta_content) = &choice.delta.content {
-                            if !delta_content.is_empty() {
-                                content.push_str(delta_content);
-                                events.push(OpenAiStreamChunk::TextDelta(delta_content.clone()));
-                            }
-                        }
-
-                        if let Some(delta_tool_calls) = &choice.delta.tool_calls {
-                            for delta_call in delta_tool_calls {
-                                let index = delta_call.index.unwrap_or(0);
-                                let entry =
-                                    tool_calls.entry(index).or_insert_with(|| OpenAiToolCall {
-                                        id: delta_call
-                                            .id
-                                            .clone()
-                                            .unwrap_or_else(|| format!("tool_call_{index}")),
-                                        name: String::new(),
-                                        arguments: String::new(),
-                                    });
-
-                                if let Some(id) = &delta_call.id {
-                                    entry.id = id.clone();
-                                }
-
-                                if let Some(function) = &delta_call.function {
-                                    if let Some(name) = &function.name {
-                                        entry.name = name.clone();
-                                    }
-
-                                    if let Some(arguments) = &function.arguments {
-                                        entry.arguments.push_str(arguments);
-                                    }
-                                }
-
-                                events.push(OpenAiStreamChunk::ToolCallDelta(entry.clone()));
-                            }
-                        }
-
-                        if choice.finish_reason.is_some() {
-                            finish_reason = parse_finish_reason(choice.finish_reason.as_deref());
-                        }
-                    }
                 }
 
-                if finished {
-                    break;
-                }
-            }
+                let final_message = OpenAiAssistantMessage {
+                    content,
+                    tool_calls: tool_calls.into_values().collect(),
+                };
 
-            let final_message = OpenAiAssistantMessage {
-                content,
-                tool_calls: tool_calls.into_values().collect(),
+                yield OpenAiStreamChunk::MessageComplete(final_message.clone());
+                yield OpenAiStreamChunk::ResponseComplete(OpenAiResponse {
+                    model: model.unwrap_or(model_for_fallback),
+                    message: final_message,
+                    finish_reason,
+                    usage: OpenAiUsage {
+                        prompt_tokens: 0,
+                        completion_tokens: 0,
+                        total_tokens: 0,
+                    },
+                });
             };
 
-            events.push(OpenAiStreamChunk::MessageComplete(final_message.clone()));
-            events.push(OpenAiStreamChunk::ResponseComplete(OpenAiResponse {
-                model: model.unwrap_or(model_for_fallback),
-                message: final_message,
-                finish_reason,
-                usage: OpenAiUsage {
-                    prompt_tokens: 0,
-                    completion_tokens: 0,
-                    total_tokens: 0,
-                },
-            }));
-
-            Ok(events)
+            Ok(Box::pin(stream) as OpenAiChunkStream<'a>)
         })
     }
 }
