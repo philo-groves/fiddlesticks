@@ -1,14 +1,21 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+//! Conversational orchestration over model providers.
+
+mod error;
+mod service;
+mod store;
+mod tools;
+mod types;
+
+pub mod prelude {
+    pub use crate::{
+        ChatError, ChatErrorKind, ChatEvent, ChatEventStream, ChatService, ChatSession,
+        ChatTurnRequest, ChatTurnResult, ConversationStore, InMemoryConversationStore,
+        NoopToolRuntime, ToolRuntime,
+    };
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use error::{ChatError, ChatErrorKind};
+pub use service::ChatService;
+pub use store::{ConversationStore, InMemoryConversationStore};
+pub use tools::{NoopToolRuntime, ToolRuntime};
+pub use types::{ChatEvent, ChatEventStream, ChatSession, ChatTurnRequest, ChatTurnResult};

@@ -68,6 +68,12 @@ dependencies = [
 [[package]]
 name = "fchat"
 version = "0.1.0"
+dependencies = [
+ "fprovider",
+ "futures-core",
+ "futures-util",
+ "tokio",
+]
 
 [[package]]
 name = "fcommon"
