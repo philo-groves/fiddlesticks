@@ -29,8 +29,6 @@ The implementation currently supports:
 - In-memory transcript storage implementation for local use/tests
 - Optional tool-call execution loop via `ftooling::ToolRuntime`
 
-Tool-execution loops are planned next.
-
 ## Add dependency
 
 ```toml
@@ -49,21 +47,58 @@ use fchat::prelude::*;
 use fprovider::ProviderId;
 
 async fn run_chat(provider: Arc<dyn fprovider::ModelProvider>) -> Result<(), ChatError> {
-    let store = Arc::new(InMemoryConversationStore::new());
-    let chat = ChatService::new(provider, store);
+    let chat = ChatService::builder(provider)
+        .default_temperature(Some(0.2))
+        .default_max_tokens(Some(400))
+        .build();
 
     let session = ChatSession::new("session-1", ProviderId::OpenAi, "gpt-4o-mini")
         .with_system_prompt("You are concise and helpful.");
 
-    let request = ChatTurnRequest::new(session, "Summarize this repo layout")
-        .with_temperature(0.2)
-        .with_max_tokens(400);
+    let request = ChatTurnRequest::new(session, "Summarize this repo layout");
 
     let result = chat.run_turn(request).await?;
 
     println!("assistant: {}", result.assistant_message);
     Ok(())
 }
+```
+
+## High-level builders and defaults
+
+`fchat` includes an opinionated builder path so you can configure once and keep turn calls lightweight.
+
+- `ChatService::builder(provider)` defaults to `InMemoryConversationStore`
+- `ChatPolicy::default()` is applied unless overridden
+- per-turn values are merged with service defaults (`ChatTurnRequest` values win)
+
+```rust
+use std::sync::Arc;
+
+use fchat::prelude::*;
+
+fn build_service(provider: Arc<dyn fprovider::ModelProvider>) -> ChatService {
+    ChatService::builder(provider)
+        .default_temperature(Some(0.3))
+        .default_max_tokens(Some(512))
+        .max_tool_round_trips(4)
+        .build()
+}
+```
+
+For turn-level overrides, use `ChatTurnOptions`:
+
+```rust
+use fchat::prelude::*;
+
+let options = ChatTurnOptions {
+    temperature: Some(0.7),
+    max_tokens: Some(120),
+    stream: false,
+};
+
+let request = ChatTurnRequest::new(session, "Explain this quickly")
+    .with_options(options);
 ```
 
 ## Streaming usage

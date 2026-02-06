@@ -38,6 +38,13 @@ pub struct ChatTurnRequest {
     pub stream: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ChatTurnOptions {
+    pub temperature: Option<f32>,
+    pub max_tokens: Option<u32>,
+    pub stream: bool,
+}
+
 impl ChatTurnRequest {
     pub fn new(session: ChatSession, user_input: impl Into<String>) -> Self {
         Self {
@@ -61,6 +68,13 @@ impl ChatTurnRequest {
 
     pub fn enable_streaming(mut self) -> Self {
         self.stream = true;
+        self
+    }
+
+    pub fn with_options(mut self, options: ChatTurnOptions) -> Self {
+        self.temperature = options.temperature;
+        self.max_tokens = options.max_tokens;
+        self.stream = options.stream;
         self
     }
 }

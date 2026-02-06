@@ -15,23 +15,102 @@ use ftooling::{ToolExecutionContext, ToolRuntime};
 
 use crate::{
     ChatError, ChatEvent, ChatEventStream, ChatTurnRequest, ChatTurnResult, ConversationStore,
+    InMemoryConversationStore,
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChatPolicy {
+    pub max_tool_round_trips: usize,
+    pub default_temperature: Option<f32>,
+    pub default_max_tokens: Option<u32>,
+}
+
+impl Default for ChatPolicy {
+    fn default() -> Self {
+        Self {
+            max_tool_round_trips: 4,
+            default_temperature: None,
+            default_max_tokens: None,
+        }
+    }
+}
+
+pub struct ChatServiceBuilder {
+    provider: Arc<dyn ModelProvider>,
+    store: Arc<dyn ConversationStore>,
+    tool_runtime: Option<Arc<dyn ToolRuntime>>,
+    policy: ChatPolicy,
+}
+
+impl ChatServiceBuilder {
+    pub fn new(provider: Arc<dyn ModelProvider>) -> Self {
+        Self {
+            provider,
+            store: Arc::new(InMemoryConversationStore::new()),
+            tool_runtime: None,
+            policy: ChatPolicy::default(),
+        }
+    }
+
+    pub fn store(mut self, store: Arc<dyn ConversationStore>) -> Self {
+        self.store = store;
+        self
+    }
+
+    pub fn tool_runtime(mut self, tool_runtime: Arc<dyn ToolRuntime>) -> Self {
+        self.tool_runtime = Some(tool_runtime);
+        self
+    }
+
+    pub fn policy(mut self, policy: ChatPolicy) -> Self {
+        self.policy = policy;
+        self
+    }
+
+    pub fn max_tool_round_trips(mut self, max_tool_round_trips: usize) -> Self {
+        self.policy.max_tool_round_trips = max_tool_round_trips;
+        self
+    }
+
+    pub fn default_temperature(mut self, temperature: Option<f32>) -> Self {
+        self.policy.default_temperature = temperature;
+        self
+    }
+
+    pub fn default_max_tokens(mut self, max_tokens: Option<u32>) -> Self {
+        self.policy.default_max_tokens = max_tokens;
+        self
+    }
+
+    pub fn build(self) -> ChatService {
+        ChatService {
+            provider: self.provider,
+            store: self.store,
+            tool_runtime: self.tool_runtime,
+            policy: self.policy,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct ChatService {
     provider: Arc<dyn ModelProvider>,
     store: Arc<dyn ConversationStore>,
     tool_runtime: Option<Arc<dyn ToolRuntime>>,
-    max_tool_round_trips: usize,
+    policy: ChatPolicy,
 }
 
 impl ChatService {
+    pub fn builder(provider: Arc<dyn ModelProvider>) -> ChatServiceBuilder {
+        ChatServiceBuilder::new(provider)
+    }
+
     pub fn new(provider: Arc<dyn ModelProvider>, store: Arc<dyn ConversationStore>) -> Self {
         Self {
             provider,
             store,
             tool_runtime: None,
-            max_tool_round_trips: 0,
+            policy: ChatPolicy::default(),
         }
     }
 
@@ -41,7 +120,12 @@ impl ChatService {
     }
 
     pub fn with_max_tool_round_trips(mut self, max_tool_round_trips: usize) -> Self {
-        self.max_tool_round_trips = max_tool_round_trips;
+        self.policy.max_tool_round_trips = max_tool_round_trips;
+        self
+    }
+
+    pub fn with_policy(mut self, policy: ChatPolicy) -> Self {
+        self.policy = policy;
         self
     }
 
@@ -81,9 +165,9 @@ impl ChatService {
             persisted_messages.push(assistant);
 
             let should_run_tools = self.tool_runtime.is_some()
-                && self.max_tool_round_trips > 0
+                && self.policy.max_tool_round_trips > 0
                 && !tool_calls.is_empty()
-                && round_trips < self.max_tool_round_trips;
+                && round_trips < self.policy.max_tool_round_trips;
 
             if !should_run_tools {
                 self.store
@@ -225,6 +309,9 @@ impl ChatService {
             max_tokens,
             stream: _,
         } = request;
+
+        let temperature = temperature.or(self.policy.default_temperature);
+        let max_tokens = max_tokens.or(self.policy.default_max_tokens);
 
         let prior = self.store.load_messages(&session.id).await?;
         let user_message = Message::new(Role::User, user_input);
@@ -575,5 +662,44 @@ mod tests {
 
         let requests = provider.requests.lock().expect("requests lock");
         assert!(requests[0].stream);
+    }
+
+    #[tokio::test]
+    async fn builder_applies_default_turn_options_to_requests() {
+        let provider = Arc::new(FakeProvider::new());
+        let service = ChatService::builder(provider.clone())
+            .default_temperature(Some(0.6))
+            .default_max_tokens(Some(256))
+            .build();
+
+        let session = ChatSession::new("s5", ProviderId::OpenAi, "gpt-4o-mini");
+        let request = ChatTurnRequest::new(session, "hello defaults");
+
+        let _ = service.run_turn(request).await.expect("turn should work");
+
+        let requests = provider.requests.lock().expect("requests lock");
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].temperature, Some(0.6));
+        assert_eq!(requests[0].max_tokens, Some(256));
+    }
+
+    #[tokio::test]
+    async fn builder_configures_tool_runtime_and_round_trip_policy() {
+        let provider = Arc::new(FakeProvider::new());
+        let runtime = Arc::new(FakeToolRuntime);
+        let service = ChatService::builder(provider.clone())
+            .tool_runtime(runtime)
+            .max_tool_round_trips(2)
+            .build();
+
+        let session = ChatSession::new("s6", ProviderId::OpenAi, "gpt-4o-mini");
+        let request = ChatTurnRequest::new(session, "hello tools");
+
+        let result = service.run_turn(request).await.expect("turn should work");
+        assert_eq!(result.assistant_message, "tool answer");
+
+        let requests = provider.requests.lock().expect("requests lock");
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[1].tool_results.len(), 1);
     }
 }
