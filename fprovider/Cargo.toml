@@ -24,3 +24,6 @@ serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
 tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }
+
+[lib]
+doctest = false
