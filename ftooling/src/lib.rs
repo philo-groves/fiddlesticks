@@ -1,14 +1,20 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+//! Capability layer for registering and executing tools.
+
+mod error;
+mod registry;
+mod runtime;
+mod tool;
+mod types;
+
+pub mod prelude {
+    pub use crate::{
+        DefaultToolRuntime, Tool, ToolError, ToolErrorKind, ToolExecutionContext,
+        ToolExecutionResult, ToolFuture, ToolRegistry, ToolRuntime,
+    };
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use error::{ToolError, ToolErrorKind};
+pub use registry::ToolRegistry;
+pub use runtime::{DefaultToolRuntime, ToolRuntime};
+pub use tool::{Tool, ToolFuture};
+pub use types::{ToolExecutionContext, ToolExecutionResult};
