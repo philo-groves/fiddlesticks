@@ -1442,7 +1442,7 @@ mod tests {
         let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
         let harness = Harness::new(memory.clone());
 
-        let request = InitializerRequest::new("session-1", "run-1", "Build phase 2")
+        let request = InitializerRequest::new("session-1", "run-1", "Build initializer flow")
             .with_init_script("#!/usr/bin/env bash\necho start")
             .with_feature_list(vec![FeatureRecord {
                 id: "feature-1".to_string(),

@@ -4,10 +4,10 @@
 
 It currently supports:
 
-- Phase 2: initializer flow
-- Phase 3: coding agent incremental loop
-- Phase 4: runtime wiring + run-level policy
-- Phase 5: reliability + guardrails (MVP hardening)
+- initializer flow
+- coding agent incremental loop
+- runtime wiring + run-level policy
+- reliability + guardrails (MVP hardening)
 
 `fharness` composes lower layers (`fmemory`, `fchat`, `ftooling`, `fprovider`) into a structured multi-run harness.
 
@@ -46,7 +46,7 @@ fchat = { path = "../fchat" }
 - `FeatureSelector` (`FirstPendingFeatureSelector` default)
 - `HarnessError` / `HarnessErrorKind`
 
-## Phase 2: Initializer flow
+## Initializer flow
 
 `run_initializer(...)`:
 
@@ -70,7 +70,7 @@ let request = InitializerRequest::new("session-1", "run-init-1", "Build incremen
 let _result = harness.run_initializer(request).await?;
 ```
 
-## Phase 3: Coding incremental loop
+## Coding incremental loop
 
 `run_coding_iteration(...)` executes one bounded run:
 
@@ -85,7 +85,7 @@ let _result = harness.run_initializer(request).await?;
    - appends progress entry
    - records completed checkpoint with status/note
 
-## Phase 4: Integrated runtime and policy ownership
+## Integrated runtime and policy ownership
 
 `HarnessBuilder` wires lower-layer runtime dependencies directly:
 
@@ -100,7 +100,7 @@ let _result = harness.run_initializer(request).await?;
 - feature selection strategy (`FeatureSelector`)
 - validation gate before marking feature pass (`OutcomeValidator`)
 
-## Phase 5: Reliability + guardrails
+## Reliability + guardrails
 
 Harness run policy now supports reliability constraints:
 
