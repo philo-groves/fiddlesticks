@@ -3,4 +3,10 @@ name = "fprovider"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+provider-opencode-zen = []
+provider-openai = []
+provider-claude = []
+
 [dependencies]
