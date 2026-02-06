@@ -384,6 +384,57 @@ mod tests {
         assert!(events.iter().any(|event| event.starts_with("failure:missing:NotFound")));
     }
 
+    #[tokio::test]
+    async fn registry_register_fn_and_register_sync_fn_are_easy_to_use() {
+        let mut registry = ToolRegistry::new();
+
+        registry.register_fn(
+            ToolDefinition {
+                name: "upper".to_string(),
+                description: "Uppercases input".to_string(),
+                input_schema: "{\"type\":\"string\"}".to_string(),
+            },
+            |args, _ctx| async move { Ok(args.to_uppercase()) },
+        );
+
+        registry.register_sync_fn(
+            ToolDefinition {
+                name: "prefix".to_string(),
+                description: "Prefixes session".to_string(),
+                input_schema: "{\"type\":\"string\"}".to_string(),
+            },
+            |args, ctx| Ok(format!("{}:{args}", ctx.session_id)),
+        );
+
+        let runtime = DefaultToolRuntime::new(Arc::new(registry));
+
+        let upper = runtime
+            .execute(
+                ToolCall {
+                    id: "call_7".to_string(),
+                    name: "upper".to_string(),
+                    arguments: "hello".to_string(),
+                },
+                ToolExecutionContext::new("s7"),
+            )
+            .await
+            .expect("upper should succeed");
+        assert_eq!(upper.output, "HELLO");
+
+        let prefixed = runtime
+            .execute(
+                ToolCall {
+                    id: "call_8".to_string(),
+                    name: "prefix".to_string(),
+                    arguments: "hello".to_string(),
+                },
+                ToolExecutionContext::new("s8"),
+            )
+            .await
+            .expect("prefix should succeed");
+        assert_eq!(prefixed.output, "s8:hello");
+    }
+
     #[test]
     fn registry_tracks_registered_tools() {
         let mut registry = ToolRegistry::new();

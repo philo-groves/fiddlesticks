@@ -1,11 +1,12 @@
 //! Tool registry for lookup by tool definition name.
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use fprovider::ToolDefinition;
 
-use crate::Tool;
+use crate::{FunctionTool, Tool, ToolError, ToolExecutionContext};
 
 #[derive(Default)]
 pub struct ToolRegistry {
@@ -23,6 +24,24 @@ impl ToolRegistry {
     {
         let name = tool.definition().name;
         self.tools.insert(name, Arc::new(tool));
+    }
+
+    pub fn register_fn<F, Fut>(&mut self, definition: ToolDefinition, handler: F)
+    where
+        F: Fn(String, ToolExecutionContext) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<String, ToolError>> + Send + 'static,
+    {
+        self.register(FunctionTool::new(definition, handler));
+    }
+
+    pub fn register_sync_fn<F>(&mut self, definition: ToolDefinition, handler: F)
+    where
+        F: Fn(String, ToolExecutionContext) -> Result<String, ToolError> + Send + Sync + 'static,
+    {
+        self.register_fn(definition, move |args_json, context| {
+            let output = handler(args_json, context);
+            async move { output }
+        });
     }
 
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
