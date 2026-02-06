@@ -5,7 +5,13 @@ edition = "2024"
 
 [features]
 default = ["provider-openai"]
-provider-opencode-zen = []
+provider-opencode-zen = [
+    "provider-openai",
+    "dep:reqwest",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:futures-util",
+]
 provider-openai = [
     "dep:reqwest",
     "dep:serde",

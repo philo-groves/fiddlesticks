@@ -221,4 +221,4 @@ let _ = value;
 
 - `provider-openai`: OpenAI adapter and HTTP transport
 - `provider-claude`: Claude adapter surface (in progress)
-- `provider-opencode-zen`: OpenCode Zen adapter surface (in progress)
+- `provider-opencode-zen`: OpenCode Zen adapter over OpenAI-compatible transport
