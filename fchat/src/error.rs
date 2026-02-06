@@ -55,3 +55,9 @@ impl From<fprovider::ProviderError> for ChatError {
         ChatError::provider(value.to_string())
     }
 }
+
+impl From<ftooling::ToolError> for ChatError {
+    fn from(value: ftooling::ToolError) -> Self {
+        ChatError::tooling(value.to_string())
+    }
+}

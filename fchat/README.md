@@ -4,6 +4,8 @@
 
 It sits above `fprovider` and is responsible for handling chat turns, session history loading/saving, and assembling provider requests from conversational state.
 
+It can also integrate with `ftooling` for provider tool-call execution loops.
+
 ## Responsibilities
 
 - Own chat-session and turn request/response types
@@ -19,13 +21,13 @@ It sits above `fprovider` and is responsible for handling chat turns, session hi
 
 ## Current implementation scope
 
-The first implementation slice currently supports:
+The implementation currently supports:
 
 - Non-streaming turn execution via `ChatService::run_turn(...)`
 - Buffered streaming turn execution via `ChatService::stream_turn(...)`
 - Session-level system prompt injection
 - In-memory transcript storage implementation for local use/tests
-- Tool runtime trait and no-op placeholder implementation
+- Optional tool-call execution loop via `ftooling::ToolRuntime`
 
 Tool-execution loops are planned next.
 
@@ -34,6 +36,7 @@ Tool-execution loops are planned next.
 ```toml
 [dependencies]
 fchat = { path = "../fchat" }
+ftooling = { path = "../ftooling" }
 fprovider = { path = "../fprovider", features = ["provider-openai"] }
 ```
 
@@ -97,11 +100,46 @@ async fn run_streaming(provider: Arc<dyn fprovider::ModelProvider>) -> Result<()
 }
 ```
 
-Current streaming semantics in this slice:
+Current streaming semantics:
 
 - `stream_turn` maps provider stream events into chat-layer events.
 - Transcript persistence still occurs before `TurnComplete` is emitted.
 - Events are currently buffered internally before being exposed to callers.
+
+## Tool loop usage (`ftooling` integration)
+
+When configured, `ChatService::run_turn(...)` can execute provider tool calls and continue model turns.
+
+```rust
+use std::sync::Arc;
+
+use fchat::prelude::*;
+use fprovider::ProviderId;
+use ftooling::prelude::*;
+
+fn build_chat(provider: Arc<dyn fprovider::ModelProvider>) -> ChatService {
+    let mut registry = ToolRegistry::new();
+    // registry.register(MyTool);
+
+    let runtime = Arc::new(DefaultToolRuntime::new(Arc::new(registry)));
+    let store = Arc::new(InMemoryConversationStore::new());
+
+    ChatService::new(provider, store)
+        .with_tool_runtime(runtime)
+        .with_max_tool_round_trips(4)
+}
+
+fn _session() -> ChatSession {
+    ChatSession::new("session-tools", ProviderId::OpenAi, "gpt-4o-mini")
+}
+```
+
+Tool loop semantics:
+
+- Tool execution is only used when both a runtime is configured and `max_tool_round_trips > 0`.
+- Each provider `ToolCall` is executed through `ftooling::ToolRuntime`.
+- Tool outputs are returned to the provider as `ToolResult` values for follow-up completions.
+- Loop stops when no tool calls remain or max round-trips is reached.
 
 ## Public API overview
 
@@ -113,8 +151,8 @@ Current streaming semantics in this slice:
 - `ChatEventStream`: stream alias for chat event consumers
 - `ConversationStore`: async conversation history contract
 - `InMemoryConversationStore`: default in-crate store implementation
-- `ToolRuntime`: tool execution contract (future tool loop integration)
-- `NoopToolRuntime`: placeholder runtime that returns tooling-not-configured
+- `with_tool_runtime(...)`: opt-in `ftooling::ToolRuntime` integration
+- `with_max_tool_round_trips(...)`: cap recursive tool/model rounds
 
 ## Error model
 

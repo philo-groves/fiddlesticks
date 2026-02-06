@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 futures-core = "0.3"
 futures-util = "0.3"
+ftooling = { path = "../ftooling" }
 fprovider = { path = "../fprovider" }
 
 [dev-dependencies]
