@@ -260,6 +260,60 @@ impl RuntimeRunRequest {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FailFastPolicy {
+    pub on_health_check_error: bool,
+    pub on_chat_error: bool,
+    pub on_validation_failure: bool,
+}
+
+impl Default for FailFastPolicy {
+    fn default() -> Self {
+        Self {
+            on_health_check_error: true,
+            on_chat_error: false,
+            on_validation_failure: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunPolicy {
+    pub max_turns_per_run: usize,
+    pub max_features_per_run: usize,
+    pub retry_budget: usize,
+    pub fail_fast: FailFastPolicy,
+}
+
+impl Default for RunPolicy {
+    fn default() -> Self {
+        Self {
+            max_turns_per_run: 1,
+            max_features_per_run: 1,
+            retry_budget: 0,
+            fail_fast: FailFastPolicy::default(),
+        }
+    }
+}
+
+impl RunPolicy {
+    pub fn validate(&self) -> Result<(), HarnessError> {
+        if self.max_turns_per_run == 0 {
+            return Err(HarnessError::invalid_request(
+                "run policy requires max_turns_per_run >= 1",
+            ));
+        }
+
+        if self.max_features_per_run != 1 {
+            return Err(HarnessError::invalid_request(
+                "run policy requires max_features_per_run = 1 for strict incremental runs",
+            ));
+        }
+
+        Ok(())
+    }
+}
+
 pub trait HealthChecker: Send + Sync {
     fn run<'a>(
         &'a self,
@@ -323,6 +377,7 @@ pub struct HarnessBuilder {
     health_checker: Arc<dyn HealthChecker>,
     validator: Arc<dyn OutcomeValidator>,
     feature_selector: Arc<dyn FeatureSelector>,
+    run_policy: RunPolicy,
     schema_version: u32,
     harness_version: String,
 }
@@ -337,6 +392,7 @@ impl HarnessBuilder {
             health_checker: Arc::new(NoopHealthChecker),
             validator: Arc::new(AcceptAllValidator),
             feature_selector: Arc::new(FirstPendingFeatureSelector),
+            run_policy: RunPolicy::default(),
             schema_version: SessionManifest::DEFAULT_SCHEMA_VERSION,
             harness_version: SessionManifest::DEFAULT_HARNESS_VERSION.to_string(),
         }
@@ -372,6 +428,11 @@ impl HarnessBuilder {
         self
     }
 
+    pub fn run_policy(mut self, run_policy: RunPolicy) -> Self {
+        self.run_policy = run_policy;
+        self
+    }
+
     pub fn schema_version(mut self, schema_version: u32) -> Self {
         self.schema_version = schema_version;
         self
@@ -383,6 +444,8 @@ impl HarnessBuilder {
     }
 
     pub fn build(self) -> Result<Harness, HarnessError> {
+        self.run_policy.validate()?;
+
         let provider = self.provider.ok_or_else(|| {
             HarnessError::not_ready("provider is required to build chat runtime")
         })?;
@@ -404,6 +467,7 @@ impl HarnessBuilder {
             health_checker: self.health_checker,
             validator: self.validator,
             feature_selector: self.feature_selector,
+            run_policy: self.run_policy,
             schema_version: self.schema_version,
             harness_version: self.harness_version,
         })
@@ -417,6 +481,7 @@ pub struct Harness {
     health_checker: Arc<dyn HealthChecker>,
     validator: Arc<dyn OutcomeValidator>,
     feature_selector: Arc<dyn FeatureSelector>,
+    run_policy: RunPolicy,
     schema_version: u32,
     harness_version: String,
 }
@@ -432,6 +497,7 @@ impl Harness {
             health_checker: Arc::new(NoopHealthChecker),
             validator: Arc::new(AcceptAllValidator),
             feature_selector: Arc::new(FirstPendingFeatureSelector),
+            run_policy: RunPolicy::default(),
             schema_version: SessionManifest::DEFAULT_SCHEMA_VERSION,
             harness_version: SessionManifest::DEFAULT_HARNESS_VERSION.to_string(),
         }
@@ -459,6 +525,12 @@ impl Harness {
     pub fn with_feature_selector(mut self, feature_selector: Arc<dyn FeatureSelector>) -> Self {
         self.feature_selector = feature_selector;
         self
+    }
+
+    pub fn with_run_policy(mut self, run_policy: RunPolicy) -> Result<Self, HarnessError> {
+        run_policy.validate()?;
+        self.run_policy = run_policy;
+        Ok(self)
     }
 
     pub fn with_schema_version(mut self, schema_version: u32) -> Self {
@@ -609,13 +681,14 @@ impl Harness {
                 let (status, note) = if value.no_pending_features {
                     (
                         RunStatus::Succeeded,
-                        "No pending features remain; clean handoff ready".to_string(),
+                        "All required features pass=true in feature_list; completion gate satisfied"
+                            .to_string(),
                     )
                 } else if value.validated {
                     (
                         RunStatus::Succeeded,
                         format!(
-                            "Feature '{}' validated and marked passing; clean handoff ready",
+                            "Feature '{}' validated and marked passing; remaining required features still pending",
                             value
                                 .selected_feature_id
                                 .clone()
@@ -731,11 +804,13 @@ impl Harness {
             .init_script
             .as_deref()
             .unwrap_or(Self::DEFAULT_INIT_SCRIPT);
-        self.health_checker.run(&request.session.id, init_script).await?;
+        if let Err(error) = self.health_checker.run(&request.session.id, init_script).await {
+            if self.run_policy.fail_fast.on_health_check_error {
+                return Err(error);
+            }
+        }
 
-        let feature = self.feature_selector.select(&bootstrap.feature_list);
-
-        let Some(feature) = feature else {
+        if all_required_features_passed(&bootstrap.feature_list) {
             return Ok(CodingRunResult {
                 session_id: request.session.id.clone(),
                 selected_feature_id: None,
@@ -744,21 +819,102 @@ impl Harness {
                 used_stream: request.stream,
                 assistant_message: None,
             });
+        }
+
+        let feature = self.feature_selector.select(&bootstrap.feature_list);
+
+        let Some(feature) = feature else {
+            return Err(HarnessError::validation(
+                "feature selector returned no work before required features reached passes=true",
+            ));
         };
 
-        let prompt = request.prompt_override.clone().unwrap_or_else(|| {
-            build_feature_prompt(&feature, &manifest.current_objective)
-        });
+        let mut turns_used = 0usize;
+        let mut retries_remaining = self.run_policy.retry_budget;
 
-        let turn_request = if request.stream {
-            ChatTurnRequest::builder(request.session.clone(), prompt)
-                .enable_streaming()
-                .build()
-        } else {
-            ChatTurnRequest::builder(request.session.clone(), prompt).build()
-        };
+        while turns_used < self.run_policy.max_turns_per_run {
+            turns_used += 1;
 
-        let turn_result = if request.stream {
+            let prompt = request
+                .prompt_override
+                .clone()
+                .unwrap_or_else(|| build_feature_prompt(&feature, &manifest.current_objective));
+
+            let turn_request = if request.stream {
+                ChatTurnRequest::builder(request.session.clone(), prompt)
+                    .enable_streaming()
+                    .build()
+            } else {
+                ChatTurnRequest::builder(request.session.clone(), prompt).build()
+            };
+
+            let turn_result = match self.execute_turn(chat, turn_request).await {
+                Ok(result) => result,
+                Err(error) => {
+                    if self.run_policy.fail_fast.on_chat_error
+                        || retries_remaining == 0
+                        || turns_used >= self.run_policy.max_turns_per_run
+                    {
+                        return Err(error);
+                    }
+
+                    retries_remaining -= 1;
+                    continue;
+                }
+            };
+
+            let validated = self.validator.validate(&feature, &turn_result).await?;
+            if validated {
+                self.memory
+                    .update_feature_pass(&request.session.id, &feature.id, true)
+                    .await?;
+                let all_features_passing = self
+                    .session_all_required_features_passed(&request.session.id)
+                    .await?;
+
+                return Ok(CodingRunResult {
+                    session_id: request.session.id.clone(),
+                    selected_feature_id: Some(feature.id.clone()),
+                    validated: true,
+                    no_pending_features: all_features_passing,
+                    used_stream: request.stream,
+                    assistant_message: Some(turn_result.assistant_message),
+                });
+            }
+
+            if self.run_policy.fail_fast.on_validation_failure
+                || retries_remaining == 0
+                || turns_used >= self.run_policy.max_turns_per_run
+            {
+                return Ok(CodingRunResult {
+                    session_id: request.session.id.clone(),
+                    selected_feature_id: Some(feature.id.clone()),
+                    validated: false,
+                    no_pending_features: false,
+                    used_stream: request.stream,
+                    assistant_message: Some(turn_result.assistant_message),
+                });
+            }
+
+            retries_remaining -= 1;
+        }
+
+        Ok(CodingRunResult {
+            session_id: request.session.id.clone(),
+            selected_feature_id: Some(feature.id),
+            validated: false,
+            no_pending_features: false,
+            used_stream: request.stream,
+            assistant_message: None,
+        })
+    }
+
+    async fn execute_turn(
+        &self,
+        chat: &ChatService,
+        turn_request: ChatTurnRequest,
+    ) -> Result<ChatTurnResult, HarnessError> {
+        if turn_request.stream {
             let mut stream = chat.stream_turn(turn_request).await?;
             let mut final_result = None;
             while let Some(item) = stream.next().await {
@@ -769,27 +925,18 @@ impl Harness {
                 }
             }
 
-            final_result
-                .ok_or_else(|| HarnessError::chat("stream ended without TurnComplete event"))?
+            final_result.ok_or_else(|| HarnessError::chat("stream ended without TurnComplete event"))
         } else {
-            chat.run_turn(turn_request).await?
-        };
-
-        let validated = self.validator.validate(&feature, &turn_result).await?;
-        if validated {
-            self.memory
-                .update_feature_pass(&request.session.id, &feature.id, true)
-                .await?;
+            chat.run_turn(turn_request).await.map_err(HarnessError::from)
         }
+    }
 
-        Ok(CodingRunResult {
-            session_id: request.session.id.clone(),
-            selected_feature_id: Some(feature.id),
-            validated,
-            no_pending_features: false,
-            used_stream: request.stream,
-            assistant_message: Some(turn_result.assistant_message),
-        })
+    async fn session_all_required_features_passed(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<bool, HarnessError> {
+        let bootstrap = self.memory.load_bootstrap_state(session_id).await?;
+        Ok(all_required_features_passed(&bootstrap.feature_list))
     }
 
     async fn record_final_handoff(
@@ -894,6 +1041,10 @@ fn build_feature_prompt(feature: &FeatureRecord, objective: &str) -> String {
         "Objective: {objective}\n\nWork on one feature incrementally and leave a clean handoff.\n\nFeature: {}\nCategory: {}\nDescription: {}\nValidation steps:\n{}",
         feature.id, feature.category, feature.description, steps
     )
+}
+
+fn all_required_features_passed(feature_list: &[FeatureRecord]) -> bool {
+    !feature_list.is_empty() && feature_list.iter().all(|feature| feature.passes)
 }
 
 #[cfg(test)]
@@ -1148,6 +1299,100 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Default)]
+    struct NeverSelectFeature;
+
+    impl FeatureSelector for NeverSelectFeature {
+        fn select(&self, _feature_list: &[FeatureRecord]) -> Option<FeatureRecord> {
+            None
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct EventuallyPassingValidator {
+        calls: Mutex<usize>,
+        pass_on_call: usize,
+    }
+
+    impl EventuallyPassingValidator {
+        fn new(pass_on_call: usize) -> Self {
+            Self {
+                calls: Mutex::new(0),
+                pass_on_call,
+            }
+        }
+    }
+
+    impl OutcomeValidator for EventuallyPassingValidator {
+        fn validate<'a>(
+            &'a self,
+            _feature: &'a FeatureRecord,
+            _result: &'a ChatTurnResult,
+        ) -> BoxFuture<'a, Result<bool, HarnessError>> {
+            Box::pin(async move {
+                let mut calls = self.calls.lock().expect("calls lock");
+                *calls += 1;
+                Ok(*calls >= self.pass_on_call)
+            })
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct FlakyCompletionProvider {
+        attempts: Mutex<usize>,
+        fail_for_attempts: usize,
+    }
+
+    impl FlakyCompletionProvider {
+        fn new(fail_for_attempts: usize) -> Self {
+            Self {
+                attempts: Mutex::new(0),
+                fail_for_attempts,
+            }
+        }
+    }
+
+    impl ModelProvider for FlakyCompletionProvider {
+        fn id(&self) -> ProviderId {
+            ProviderId::OpenAi
+        }
+
+        fn complete<'a>(
+            &'a self,
+            request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<ModelResponse, fprovider::ProviderError>> {
+            Box::pin(async move {
+                let mut attempts = self.attempts.lock().expect("attempts lock");
+                *attempts += 1;
+                if *attempts <= self.fail_for_attempts {
+                    return Err(fprovider::ProviderError::timeout("transient failure"));
+                }
+
+                Ok(ModelResponse {
+                    provider: ProviderId::OpenAi,
+                    model: request.model,
+                    output: vec![OutputItem::Message(Message::new(
+                        fprovider::Role::Assistant,
+                        "eventual-success",
+                    ))],
+                    stop_reason: StopReason::EndTurn,
+                    usage: TokenUsage::default(),
+                })
+            })
+        }
+
+        fn stream<'a>(
+            &'a self,
+            _request: ModelRequest,
+        ) -> ProviderFuture<'a, Result<fprovider::BoxedEventStream<'a>, fprovider::ProviderError>> {
+            Box::pin(async {
+                Err(fprovider::ProviderError::invalid_request(
+                    "stream not used in flaky completion provider",
+                ))
+            })
+        }
+    }
+
     fn build_harness(
         memory: Arc<dyn MemoryBackend>,
         health_checker: Option<Arc<dyn HealthChecker>>,
@@ -1350,7 +1595,7 @@ mod tests {
             .await
             .expect("coding run should succeed");
 
-        assert!(!result.no_pending_features);
+        assert!(result.no_pending_features);
         assert!(result.validated);
         assert_eq!(result.selected_feature_id.as_deref(), Some("feature-1"));
 
@@ -1632,5 +1877,162 @@ mod tests {
         let last_message = request.messages.last().expect("user message should exist");
         assert_eq!(last_message.role, fprovider::Role::User);
         assert_eq!(last_message.content, "explicit prompt");
+    }
+
+    #[tokio::test]
+    async fn run_policy_enforces_strict_incremental_feature_limit() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let error = Harness::builder(memory)
+            .provider(Arc::new(FakeProvider))
+            .run_policy(RunPolicy {
+                max_turns_per_run: 1,
+                max_features_per_run: 2,
+                retry_budget: 0,
+                fail_fast: FailFastPolicy::default(),
+            })
+            .build()
+            .err()
+            .expect("policy should reject non-incremental feature count");
+
+        assert_eq!(error.kind, HarnessErrorKind::InvalidRequest);
+    }
+
+    #[tokio::test]
+    async fn coding_iteration_retries_validation_when_policy_allows() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = build_harness(
+            memory.clone(),
+            None,
+            Some(Arc::new(EventuallyPassingValidator::new(2))),
+        )
+        .with_run_policy(RunPolicy {
+            max_turns_per_run: 3,
+            max_features_per_run: 1,
+            retry_budget: 2,
+            fail_fast: FailFastPolicy {
+                on_validation_failure: false,
+                ..FailFastPolicy::default()
+            },
+        })
+        .expect("run policy should be accepted");
+
+        initialize_for_tests(&harness, "session-retry-validation").await;
+
+        let session = ChatSession::new("session-retry-validation", ProviderId::OpenAi, "gpt-4o-mini");
+        let result = harness
+            .run_coding_iteration(CodingRunRequest::new(session, "run-retry-validation"))
+            .await
+            .expect("coding run should succeed after retry");
+
+        assert!(result.validated);
+    }
+
+    #[tokio::test]
+    async fn coding_iteration_stops_when_turn_budget_is_exhausted() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = build_harness(memory.clone(), None, Some(Arc::new(AlwaysFailValidator)))
+            .with_run_policy(RunPolicy {
+                max_turns_per_run: 1,
+                max_features_per_run: 1,
+                retry_budget: 3,
+                fail_fast: FailFastPolicy {
+                    on_validation_failure: false,
+                    ..FailFastPolicy::default()
+                },
+            })
+            .expect("run policy should be accepted");
+
+        initialize_for_tests(&harness, "session-turn-budget").await;
+
+        let session = ChatSession::new("session-turn-budget", ProviderId::OpenAi, "gpt-4o-mini");
+        let result = harness
+            .run_coding_iteration(CodingRunRequest::new(session, "run-turn-budget"))
+            .await
+            .expect("coding run should complete with validation failure");
+
+        assert!(!result.validated);
+    }
+
+    #[tokio::test]
+    async fn coding_iteration_retries_chat_errors_within_retry_budget() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = Harness::builder(memory.clone())
+            .provider(Arc::new(FlakyCompletionProvider::new(1)))
+            .validator(Arc::new(AcceptAllValidator))
+            .run_policy(RunPolicy {
+                max_turns_per_run: 3,
+                max_features_per_run: 1,
+                retry_budget: 1,
+                fail_fast: FailFastPolicy {
+                    on_chat_error: false,
+                    ..FailFastPolicy::default()
+                },
+            })
+            .build()
+            .expect("builder should succeed");
+
+        initialize_for_tests(&harness, "session-chat-retry").await;
+
+        let session = ChatSession::new("session-chat-retry", ProviderId::OpenAi, "gpt-4o-mini");
+        let result = harness
+            .run_coding_iteration(CodingRunRequest::new(session, "run-chat-retry"))
+            .await
+            .expect("chat error should be retried successfully");
+
+        assert!(result.validated);
+    }
+
+    #[tokio::test]
+    async fn harness_does_not_declare_done_when_selector_returns_none_early() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = build_harness(memory.clone(), None, None)
+            .with_feature_selector(Arc::new(NeverSelectFeature));
+        initialize_for_tests(&harness, "session-no-early-done").await;
+
+        let session = ChatSession::new("session-no-early-done", ProviderId::OpenAi, "gpt-4o-mini");
+        let error = harness
+            .run_coding_iteration(CodingRunRequest::new(session, "run-no-early-done"))
+            .await
+            .expect_err("selector returning none should fail completion gate");
+
+        assert_eq!(error.kind, HarnessErrorKind::Validation);
+    }
+
+    #[tokio::test]
+    async fn completion_gate_requires_all_features_to_pass_true() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let harness = build_harness(memory.clone(), None, None);
+
+        harness
+            .run_initializer(
+                InitializerRequest::new("session-completion-gate", "run-init", "completion gate")
+                    .with_feature_list(vec![
+                        FeatureRecord {
+                            id: "feature-1".to_string(),
+                            category: "functional".to_string(),
+                            description: "first required feature".to_string(),
+                            steps: vec!["implement 1".to_string()],
+                            passes: false,
+                        },
+                        FeatureRecord {
+                            id: "feature-2".to_string(),
+                            category: "functional".to_string(),
+                            description: "second required feature".to_string(),
+                            steps: vec!["implement 2".to_string()],
+                            passes: false,
+                        },
+                    ]),
+            )
+            .await
+            .expect("initializer should succeed");
+
+        let session = ChatSession::new("session-completion-gate", ProviderId::OpenAi, "gpt-4o-mini");
+        let result = harness
+            .run_coding_iteration(CodingRunRequest::new(session, "run-completion-gate"))
+            .await
+            .expect("coding run should succeed");
+
+        assert!(result.validated);
+        assert!(!result.no_pending_features);
     }
 }

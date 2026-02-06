@@ -7,6 +7,7 @@ It currently supports:
 - Phase 2: initializer flow
 - Phase 3: coding agent incremental loop
 - Phase 4: runtime wiring + run-level policy
+- Phase 5: reliability + guardrails (MVP hardening)
 
 `fharness` composes lower layers (`fmemory`, `fchat`, `ftooling`, `fprovider`) into a structured multi-run harness.
 
@@ -98,6 +99,20 @@ let _result = harness.run_initializer(request).await?;
 - phase selection (`initializer` vs `coding`)
 - feature selection strategy (`FeatureSelector`)
 - validation gate before marking feature pass (`OutcomeValidator`)
+
+## Phase 5: Reliability + guardrails
+
+Harness run policy now supports reliability constraints:
+
+- `max_turns_per_run`
+- `max_features_per_run = 1` (strict incremental)
+- `retry_budget`
+- fail-fast conditions (`health check`, `chat`, `validation`)
+
+Completion guardrail:
+
+- harness does not declare done early
+- completion requires all required features in `feature_list` to have `passes = true`
 
 ```rust
 use std::sync::Arc;
