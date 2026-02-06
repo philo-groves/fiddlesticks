@@ -1,14 +1,214 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+//! Context and harness-state persistence layer with fchat adapter support.
+
+mod adapter;
+mod backend;
+mod error;
+mod types;
+
+pub mod prelude {
+    pub use crate::{
+        BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryConversationStore,
+        MemoryBackend, MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus,
+        SessionManifest,
+    };
 }
+
+pub use adapter::MemoryConversationStore;
+pub use backend::{InMemoryMemoryBackend, MemoryBackend};
+pub use error::{MemoryError, MemoryErrorKind};
+pub use types::{
+    BootstrapState, FeatureRecord, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+};
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::Arc;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    use fchat::ConversationStore;
+    use fcommon::SessionId;
+    use fprovider::{Message, Role};
+
+    use crate::types::{FeatureRecord, ProgressEntry, RunCheckpoint, SessionManifest};
+    use crate::{InMemoryMemoryBackend, MemoryBackend, MemoryConversationStore};
+
+    #[tokio::test]
+    async fn backend_stores_bootstrap_state_and_transcript() {
+        let backend = InMemoryMemoryBackend::new();
+        let session_id = SessionId::from("session-a");
+
+        backend
+            .save_manifest(
+                &session_id,
+                SessionManifest::new(session_id.clone(), "feature/harness", "Build initializer"),
+            )
+            .await
+            .expect("manifest should save");
+
+        backend
+            .replace_feature_list(
+                &session_id,
+                vec![FeatureRecord {
+                    id: "f-1".to_string(),
+                    category: "functional".to_string(),
+                    description: "Initializer creates artifacts".to_string(),
+                    steps: vec!["run initializer".to_string()],
+                    passes: false,
+                }],
+            )
+            .await
+            .expect("feature list should save");
+
+        backend
+            .append_progress_entry(&session_id, ProgressEntry::new("run-1", "Initialized"))
+            .await
+            .expect("progress should append");
+
+        backend
+            .record_run_checkpoint(&session_id, RunCheckpoint::started("run-1"))
+            .await
+            .expect("checkpoint should save");
+
+        backend
+            .append_transcript_messages(
+                &session_id,
+                vec![Message::new(Role::User, "hello"), Message::new(Role::Assistant, "hi")],
+            )
+            .await
+            .expect("transcript should append");
+
+        let bootstrap = backend
+            .load_bootstrap_state(&session_id)
+            .await
+            .expect("bootstrap should load");
+        assert!(bootstrap.manifest.is_some());
+        assert_eq!(bootstrap.feature_list.len(), 1);
+        assert_eq!(bootstrap.recent_progress.len(), 1);
+        assert_eq!(bootstrap.checkpoints.len(), 1);
+
+        let transcript = backend
+            .load_transcript_messages(&session_id)
+            .await
+            .expect("transcript should load");
+        assert_eq!(transcript.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn conversation_store_adapter_reads_and_writes_transcript() {
+        let backend: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let store = MemoryConversationStore::new(backend.clone());
+        let session_id = SessionId::from("session-b");
+
+        store
+            .append_messages(
+                &session_id,
+                vec![
+                    Message::new(Role::User, "hello"),
+                    Message::new(Role::Assistant, "greetings"),
+                ],
+            )
+            .await
+            .expect("append should work");
+
+        let loaded = store
+            .load_messages(&session_id)
+            .await
+            .expect("load should work");
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded[0].role, Role::User);
+        assert_eq!(loaded[1].role, Role::Assistant);
+    }
+
+    #[tokio::test]
+    async fn update_feature_pass_fails_for_unknown_feature() {
+        let backend = InMemoryMemoryBackend::new();
+        let session_id = SessionId::from("session-c");
+        let error = backend
+            .update_feature_pass(&session_id, "missing", true)
+            .await
+            .expect_err("update should fail");
+
+        assert_eq!(error.kind, crate::MemoryErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn initialize_session_if_missing_is_idempotent() {
+        let backend = InMemoryMemoryBackend::new();
+        let session_id = SessionId::from("session-init");
+
+        let created = backend
+            .initialize_session_if_missing(
+                &session_id,
+                SessionManifest::new(session_id.clone(), "feature/init", "Initialize harness")
+                    .with_harness_version("v0.1.0"),
+                vec![FeatureRecord {
+                    id: "f-1".to_string(),
+                    category: "functional".to_string(),
+                    description: "create init artifacts".to_string(),
+                    steps: vec!["write files".to_string()],
+                    passes: false,
+                }],
+                Some(ProgressEntry::new("run-1", "initialized")),
+                Some(RunCheckpoint::started("run-1")),
+            )
+            .await
+            .expect("init should succeed");
+        assert!(created);
+
+        let created_again = backend
+            .initialize_session_if_missing(
+                &session_id,
+                SessionManifest::new(session_id.clone(), "feature/other", "Should not overwrite"),
+                vec![FeatureRecord {
+                    id: "f-overwrite".to_string(),
+                    category: "functional".to_string(),
+                    description: "should not appear".to_string(),
+                    steps: vec!["none".to_string()],
+                    passes: true,
+                }],
+                Some(ProgressEntry::new("run-2", "should not append")),
+                Some(RunCheckpoint::started("run-2")),
+            )
+            .await
+            .expect("second init should return false");
+        assert!(!created_again);
+
+        let bootstrap = backend
+            .load_bootstrap_state(&session_id)
+            .await
+            .expect("bootstrap should load");
+        let manifest = bootstrap.manifest.expect("manifest should exist");
+        assert_eq!(manifest.active_branch, "feature/init");
+        assert_eq!(manifest.harness_version, "v0.1.0");
+        assert_eq!(bootstrap.feature_list.len(), 1);
+        assert_eq!(bootstrap.recent_progress.len(), 1);
+        assert_eq!(bootstrap.checkpoints.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn is_initialized_tracks_manifest_presence() {
+        let backend = InMemoryMemoryBackend::new();
+        let session_id = SessionId::from("session-ready");
+
+        assert!(
+            !backend
+                .is_initialized(&session_id)
+                .await
+                .expect("lookup should work")
+        );
+
+        backend
+            .save_manifest(
+                &session_id,
+                SessionManifest::new(session_id.clone(), "feature/init", "Initialize"),
+            )
+            .await
+            .expect("manifest should save");
+
+        assert!(
+            backend
+                .is_initialized(&session_id)
+                .await
+                .expect("lookup should work")
+        );
     }
 }
