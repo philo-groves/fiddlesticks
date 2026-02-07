@@ -140,15 +140,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "fharness"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70a9444a2c1088e69719158f1389d593230b760170313854b3dc0edc4ee77edf"
+dependencies = [
+ "fchat 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fmemory 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ftooling 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-util",
+]
+
+[[package]]
 name = "fiddlesticks"
 version = "0.1.0"
 dependencies = [
- "fchat 0.1.0",
- "fcommon 0.1.0",
- "fharness",
- "fmemory 0.1.0",
- "fprovider 0.1.0",
- "ftooling 0.1.0",
+ "fchat 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fharness 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fmemory 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ftooling 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
 ]
 
