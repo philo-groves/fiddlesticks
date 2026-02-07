@@ -2,7 +2,10 @@
 name = "fiddlesticks"
 version = "0.1.0"
 edition = "2024"
-description = "Gateway facade for the Fiddlesticks Rust workspace"
+authors = ["Philo Groves <philogroves@gmail.com>"]
+description = "Primary library for the fiddlesticks agent harness framework"
+license = "MIT"
+repository = "https://github.com/philogroves/fiddlesticks"
 
 [features]
 default = ["provider-openai"]

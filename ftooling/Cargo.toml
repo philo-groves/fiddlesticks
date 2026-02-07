@@ -2,6 +2,10 @@
 name = "ftooling"
 version = "0.1.0"
 edition = "2024"
+authors = ["Philo Groves <philogroves@gmail.com>"]
+description = "Tool library for the fiddlesticks agent harness framework"
+license = "MIT"
+repository = "https://github.com/philogroves/fiddlesticks"
 
 [dependencies]
 fcommon = { path = "../fcommon" }
