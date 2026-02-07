@@ -8,10 +8,10 @@ license = "MIT"
 repository = "https://github.com/philogroves/fiddlesticks"
 
 [dependencies]
-fcommon = { path = "../fcommon" }
+fcommon = "0.1.0"
 futures-timer = "3"
 futures-util = "0.3"
-fprovider = { path = "../fprovider" }
+fprovider = "0.1.0"
 serde_json = "1"
 
 [dev-dependencies]

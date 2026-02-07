@@ -93,7 +93,7 @@ version = "0.1.0"
 dependencies = [
  "async-stream",
  "fcommon 0.1.0",
- "fprovider",
+ "fprovider 0.1.0",
  "ftooling",
  "futures-core",
  "futures-timer",
@@ -118,7 +118,7 @@ dependencies = [
  "fchat",
  "fcommon 0.1.0",
  "fmemory",
- "fprovider",
+ "fprovider 0.1.0",
  "ftooling",
  "futures-util",
  "tokio",
@@ -132,7 +132,7 @@ dependencies = [
  "fcommon 0.1.0",
  "fharness",
  "fmemory",
- "fprovider",
+ "fprovider 0.1.0",
  "ftooling",
  "tokio",
 ]
@@ -149,7 +149,7 @@ version = "0.1.0"
 dependencies = [
  "fchat",
  "fcommon 0.1.0",
- "fprovider",
+ "fprovider 0.1.0",
  "tokio",
 ]
 
@@ -177,11 +177,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "fprovider"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c933bcf8203a9ef169a6e8d50b57ad102213490e7585fe0d8b5be10eb422fdda"
+dependencies = [
+ "async-stream",
+ "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-core",
+ "futures-util",
+ "reqwest",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ftooling"
 version = "0.1.0"
 dependencies = [
- "fcommon 0.1.0",
- "fprovider",
+ "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-timer",
  "futures-util",
  "serde_json",
