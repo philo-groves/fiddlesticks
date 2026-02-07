@@ -27,7 +27,7 @@ provider-openai = [
 provider-claude = []
 
 [dependencies]
-fcommon = { path = "../fcommon" }
+fcommon = "0.1.0"
 futures-core = "0.3"
 futures-util = { version = "0.3", optional = true }
 async-stream = { version = "0.3", optional = true }
