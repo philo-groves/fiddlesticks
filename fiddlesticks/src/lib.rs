@@ -1,7 +1,7 @@
 //! Unified facade over the Fiddlesticks workspace crates.
 //!
 //! This crate is designed to be the single dependency for most applications.
-//! It re-exports the core workspace crates and provides convenience utilities
+//! It re-exports the core fiddlesticks crates and provides convenience utilities
 //! and macros for common setup and request-building flows.
 
 mod macros;
