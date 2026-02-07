@@ -8,11 +8,11 @@ license = "MIT"
 repository = "https://github.com/philogroves/fiddlesticks"
 
 [dependencies]
-fcommon = { path = "../fcommon" }
-fchat = { path = "../fchat" }
-fmemory = { path = "../fmemory" }
-fprovider = { path = "../fprovider" }
-ftooling = { path = "../ftooling" }
+fcommon = "0.1.0"
+fchat = "0.1.0"
+fmemory = "0.1.0"
+fprovider = "0.1.0"
+ftooling = "0.1.0"
 futures-util = "0.3"
 
 [dev-dependencies]
