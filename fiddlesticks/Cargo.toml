@@ -14,12 +14,12 @@ provider-opencode-zen = ["fprovider/provider-opencode-zen"]
 provider-claude = ["fprovider/provider-claude"]
 
 [dependencies]
-fchat = "0.1.0"
-fcommon = "0.1.0"
-fharness = "0.1.0"
-fmemory = "0.1.0"
-fprovider = "0.1.0"
-ftooling = "0.1.0"
+fchat = { path = "../fchat" }
+fcommon = { path = "../fcommon" }
+fharness = { path = "../fharness" }
+fmemory = { path = "../fmemory" }
+fprovider = { path = "../fprovider" }
+ftooling = { path = "../ftooling" }
 
 [dev-dependencies]
 tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }

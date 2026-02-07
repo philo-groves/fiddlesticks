@@ -92,9 +92,9 @@ name = "fchat"
 version = "0.1.0"
 dependencies = [
  "async-stream",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ftooling 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fcommon",
+ "fprovider",
+ "ftooling",
  "futures-core",
  "futures-timer",
  "futures-util",
@@ -102,67 +102,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "fchat"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ef2020515b33af9f9e90cb6d97a57b8c5c8cfe057aae3f8906f4f7b9c1b40ab"
-dependencies = [
- "async-stream",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ftooling 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures-core",
- "futures-timer",
- "futures-util",
-]
-
-[[package]]
 name = "fcommon"
 version = "0.1.0"
-
-[[package]]
-name = "fcommon"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6bbbcdd4074d79f3e0b95308427b3a7f6d8b4372d80389d93c59efd50c3fb4f"
 
 [[package]]
 name = "fharness"
 version = "0.1.0"
 dependencies = [
- "fchat 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fmemory 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ftooling 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fchat",
+ "fcommon",
+ "fmemory",
+ "fprovider",
+ "ftooling",
  "futures-util",
  "tokio",
-]
-
-[[package]]
-name = "fharness"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70a9444a2c1088e69719158f1389d593230b760170313854b3dc0edc4ee77edf"
-dependencies = [
- "fchat 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fmemory 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ftooling 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures-util",
 ]
 
 [[package]]
 name = "fiddlesticks"
 version = "0.1.0"
 dependencies = [
- "fchat 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fharness 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fmemory 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ftooling 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fchat",
+ "fcommon",
+ "fharness",
+ "fmemory",
+ "fprovider",
+ "ftooling",
  "tokio",
 ]
 
@@ -176,21 +141,10 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 name = "fmemory"
 version = "0.1.0"
 dependencies = [
- "fchat 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fchat",
+ "fcommon",
+ "fprovider",
  "tokio",
-]
-
-[[package]]
-name = "fmemory"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "474d46722298a7e8b53b6c99429d2471598de2f0bd52c0162c463453e8e85af7"
-dependencies = [
- "fchat 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -207,7 +161,7 @@ name = "fprovider"
 version = "0.1.0"
 dependencies = [
  "async-stream",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fcommon",
  "futures-core",
  "futures-util",
  "reqwest",
@@ -217,43 +171,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "fprovider"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c933bcf8203a9ef169a6e8d50b57ad102213490e7585fe0d8b5be10eb422fdda"
-dependencies = [
- "async-stream",
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures-core",
- "futures-util",
- "reqwest",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "ftooling"
 version = "0.1.0"
 dependencies = [
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fcommon",
+ "fprovider",
  "futures-timer",
  "futures-util",
  "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "ftooling"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c11da8e59778d898d3525c715696f42f4bcd820ed6845f6a3bc9f20ddae7722b"
-dependencies = [
- "fcommon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "fprovider 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures-timer",
- "futures-util",
- "serde_json",
 ]
 
 [[package]]
