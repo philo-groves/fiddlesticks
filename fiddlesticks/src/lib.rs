@@ -24,10 +24,10 @@ pub use fchat::{
 };
 pub use fcommon::{BoxFuture, MetadataMap, SessionId, TraceId};
 pub use fharness::{
-    AcceptAllValidator, CodingRunRequest, CodingRunResult, FailFastPolicy, FeatureSelector,
-    FirstPendingFeatureSelector, Harness, HarnessBuilder, HarnessError, HarnessErrorKind,
-    HarnessPhase, HealthChecker, InitializerRequest, InitializerResult, NoopHealthChecker,
-    OutcomeValidator, RunPolicy, RuntimeRunOutcome, RuntimeRunRequest,
+    AcceptAllValidator, FailFastPolicy, FeatureSelector, FirstPendingFeatureSelector, Harness,
+    HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker,
+    InitializerRequest, InitializerResult, NoopHealthChecker, OutcomeValidator, RunPolicy,
+    RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
 };
 pub use fmemory::{
     BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryBackend, MemoryConversationStore,

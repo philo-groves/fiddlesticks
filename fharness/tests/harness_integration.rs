@@ -3,8 +3,8 @@ use std::sync::Arc;
 use fchat::ChatSession;
 use fcommon::{BoxFuture, SessionId};
 use fharness::{
-    CodingRunRequest, Harness, InitializerRequest, OutcomeValidator, RuntimeRunOutcome,
-    RuntimeRunRequest,
+    Harness, InitializerRequest, OutcomeValidator, RuntimeRunOutcome, RuntimeRunRequest,
+    TaskIterationRequest,
 };
 use fmemory::{FeatureRecord, InMemoryMemoryBackend, MemoryBackend};
 use fprovider::{
@@ -110,7 +110,7 @@ async fn initializer_creates_required_artifacts() {
 }
 
 #[tokio::test]
-async fn coding_run_picks_one_failing_feature_and_updates_progress() {
+async fn task_iteration_picks_one_failing_feature_and_updates_progress() {
     let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
     let harness = Harness::builder(memory.clone())
         .provider(Arc::new(FixedAssistantProvider))
@@ -127,9 +127,9 @@ async fn coding_run_picks_one_failing_feature_and_updates_progress() {
 
     let session = ChatSession::new("integration-code-1", ProviderId::OpenAi, "gpt-4o-mini");
     let result = harness
-        .run_coding_iteration(CodingRunRequest::new(session, "run-code-1"))
+        .run_task_iteration(TaskIterationRequest::new(session, "run-code-1"))
         .await
-        .expect("coding iteration should succeed");
+        .expect("task iteration should succeed");
 
     assert_eq!(result.selected_feature_id.as_deref(), Some("feature-a"));
     assert!(result.validated);
@@ -167,7 +167,7 @@ async fn coding_run_picks_one_failing_feature_and_updates_progress() {
 }
 
 #[tokio::test]
-async fn coding_run_does_not_mark_feature_pass_without_validation() {
+async fn task_iteration_does_not_mark_feature_pass_without_validation() {
     let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
     let harness = Harness::builder(memory.clone())
         .provider(Arc::new(FixedAssistantProvider))
@@ -185,9 +185,9 @@ async fn coding_run_does_not_mark_feature_pass_without_validation() {
 
     let session = ChatSession::new("integration-no-pass", ProviderId::OpenAi, "gpt-4o-mini");
     let result = harness
-        .run_coding_iteration(CodingRunRequest::new(session, "run-code-1"))
+        .run_task_iteration(TaskIterationRequest::new(session, "run-code-1"))
         .await
-        .expect("coding run should complete");
+        .expect("task iteration should complete");
 
     assert!(!result.validated);
 
@@ -217,7 +217,7 @@ async fn fresh_context_window_recovers_state_from_fmemory_and_continues() {
 
     let session_a = ChatSession::new("integration-fresh", ProviderId::OpenAi, "gpt-4o-mini");
     let first = harness_a
-        .run_coding_iteration(CodingRunRequest::new(session_a, "run-code-1"))
+        .run_task_iteration(TaskIterationRequest::new(session_a, "run-code-1"))
         .await
         .expect("first run should succeed");
     assert_eq!(first.selected_feature_id.as_deref(), Some("feature-1"));
@@ -229,7 +229,7 @@ async fn fresh_context_window_recovers_state_from_fmemory_and_continues() {
 
     let session_b = ChatSession::new("integration-fresh", ProviderId::OpenAi, "gpt-4o-mini");
     let second = harness_b
-        .run_coding_iteration(CodingRunRequest::new(session_b, "run-code-2"))
+        .run_task_iteration(TaskIterationRequest::new(session_b, "run-code-2"))
         .await
         .expect("second run should continue from memory state");
     assert_eq!(second.selected_feature_id.as_deref(), Some("feature-2"));
@@ -271,11 +271,11 @@ async fn multi_run_completion_requires_all_features_passed() {
             "complete all required features",
         ))
         .await
-        .expect("first coding phase should run");
+        .expect("first task-iteration phase should run");
 
     let first = match first_outcome {
-        RuntimeRunOutcome::Coding(value) => value,
-        RuntimeRunOutcome::Initializer(_) => panic!("expected coding outcome"),
+        RuntimeRunOutcome::TaskIteration(value) => value,
+        RuntimeRunOutcome::Initializer(_) => panic!("expected task-iteration outcome"),
     };
     assert!(first.validated);
     assert!(!first.no_pending_features);
@@ -287,11 +287,11 @@ async fn multi_run_completion_requires_all_features_passed() {
             "complete all required features",
         ))
         .await
-        .expect("second coding phase should run");
+        .expect("second task-iteration phase should run");
 
     let second = match second_outcome {
-        RuntimeRunOutcome::Coding(value) => value,
-        RuntimeRunOutcome::Initializer(_) => panic!("expected coding outcome"),
+        RuntimeRunOutcome::TaskIteration(value) => value,
+        RuntimeRunOutcome::Initializer(_) => panic!("expected task-iteration outcome"),
     };
     assert!(second.validated);
     assert!(second.no_pending_features);

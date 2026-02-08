@@ -15,7 +15,7 @@ fcommon (shared primitives)
             +--> fchat (chat turn orchestration)
             +--> fmemory (harness state + transcript persistence)
                          |
-                         +--> fharness (initializer + coding run orchestration)
+                         +--> fharness (initializer + task-iteration orchestration)
 
 fiddlesticks (facade over all workspace crates)
 ```

@@ -146,14 +146,14 @@ pub struct InitializerResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CodingRunRequest {
+pub struct TaskIterationRequest {
     pub session: ChatSession,
     pub run_id: String,
     pub stream: bool,
     pub prompt_override: Option<String>,
 }
 
-impl CodingRunRequest {
+impl TaskIterationRequest {
     pub fn new(session: ChatSession, run_id: impl Into<String>) -> Self {
         Self {
             session,
@@ -175,7 +175,7 @@ impl CodingRunRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CodingRunResult {
+pub struct TaskIterationResult {
     pub session_id: SessionId,
     pub selected_feature_id: Option<String>,
     pub validated: bool,
@@ -187,13 +187,13 @@ pub struct CodingRunResult {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HarnessPhase {
     Initializer,
-    Coding,
+    TaskIteration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeRunOutcome {
     Initializer(InitializerResult),
-    Coding(CodingRunResult),
+    TaskIteration(TaskIterationResult),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -544,7 +544,7 @@ impl Harness {
 
     pub async fn select_phase(&self, session_id: &SessionId) -> Result<HarnessPhase, HarnessError> {
         if self.memory.is_initialized(session_id).await? {
-            Ok(HarnessPhase::Coding)
+            Ok(HarnessPhase::TaskIteration)
         } else {
             Ok(HarnessPhase::Initializer)
         }
@@ -577,19 +577,19 @@ impl Harness {
                     .await
                     .map(RuntimeRunOutcome::Initializer)
             }
-            HarnessPhase::Coding => {
-                let mut coding = CodingRunRequest::new(request.session, request.run_id);
+            HarnessPhase::TaskIteration => {
+                let mut task_iteration = TaskIterationRequest::new(request.session, request.run_id);
                 if request.stream {
-                    coding = coding.enable_streaming();
+                    task_iteration = task_iteration.enable_streaming();
                 }
 
                 if let Some(prompt_override) = request.prompt_override {
-                    coding = coding.with_prompt_override(prompt_override);
+                    task_iteration = task_iteration.with_prompt_override(prompt_override);
                 }
 
-                self.run_coding_iteration(coding)
+                self.run_task_iteration(task_iteration)
                     .await
-                    .map(RuntimeRunOutcome::Coding)
+                    .map(RuntimeRunOutcome::TaskIteration)
             }
         }
     }
@@ -660,10 +660,10 @@ impl Harness {
         })
     }
 
-    pub async fn run_coding_iteration(
+    pub async fn run_task_iteration(
         &self,
-        request: CodingRunRequest,
-    ) -> Result<CodingRunResult, HarnessError> {
+        request: TaskIterationRequest,
+    ) -> Result<TaskIterationResult, HarnessError> {
         let chat = self
             .chat
             .as_ref()
@@ -677,7 +677,7 @@ impl Harness {
             )
             .await?;
 
-        let result = self.run_coding_iteration_inner(chat, &request).await;
+        let result = self.run_task_iteration_inner(chat, &request).await;
 
         match &result {
             Ok(value) => {
@@ -743,7 +743,7 @@ impl Harness {
             feature(
                 "harness.baseline",
                 "functional",
-                "Baseline harness checks can run before coding iterations",
+                "Baseline harness checks can run before task iterations",
                 [
                     "Run startup script",
                     "Verify workspace status is readable",
@@ -793,11 +793,11 @@ impl Harness {
         ]
     }
 
-    async fn run_coding_iteration_inner(
+    async fn run_task_iteration_inner(
         &self,
         chat: &ChatService,
-        request: &CodingRunRequest,
-    ) -> Result<CodingRunResult, HarnessError> {
+        request: &TaskIterationRequest,
+    ) -> Result<TaskIterationResult, HarnessError> {
         let bootstrap = self
             .memory
             .load_bootstrap_state(&request.session.id)
@@ -821,7 +821,7 @@ impl Harness {
         }
 
         if all_required_features_passed(&bootstrap.feature_list) {
-            return Ok(CodingRunResult {
+            return Ok(TaskIterationResult {
                 session_id: request.session.id.clone(),
                 selected_feature_id: None,
                 validated: true,
@@ -882,7 +882,7 @@ impl Harness {
                     .session_all_required_features_passed(&request.session.id)
                     .await?;
 
-                return Ok(CodingRunResult {
+                return Ok(TaskIterationResult {
                     session_id: request.session.id.clone(),
                     selected_feature_id: Some(feature.id.clone()),
                     validated: true,
@@ -896,7 +896,7 @@ impl Harness {
                 || retries_remaining == 0
                 || turns_used >= self.run_policy.max_turns_per_run
             {
-                return Ok(CodingRunResult {
+                return Ok(TaskIterationResult {
                     session_id: request.session.id.clone(),
                     selected_feature_id: Some(feature.id.clone()),
                     validated: false,
@@ -909,7 +909,7 @@ impl Harness {
             retries_remaining -= 1;
         }
 
-        Ok(CodingRunResult {
+        Ok(TaskIterationResult {
             session_id: request.session.id.clone(),
             selected_feature_id: Some(feature.id),
             validated: false,
@@ -954,7 +954,7 @@ impl Harness {
 
     async fn record_final_handoff(
         &self,
-        request: &CodingRunRequest,
+        request: &TaskIterationRequest,
         started_at: SystemTime,
         status: RunStatus,
         note: String,
@@ -1447,7 +1447,7 @@ mod tests {
     async fn initialize_for_tests(harness: &Harness, session_id: &str) {
         harness
             .run_initializer(
-                InitializerRequest::new(session_id, "run-init", "prepare coding run")
+                InitializerRequest::new(session_id, "run-init", "prepare task iteration")
                     .with_feature_list(vec![FeatureRecord {
                         id: "feature-1".to_string(),
                         category: "functional".to_string(),
@@ -1553,7 +1553,7 @@ mod tests {
         let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
         let harness = Harness::new(memory);
 
-        let request = InitializerRequest::new("session-4", "run-1", "Build coding harness");
+        let request = InitializerRequest::new("session-4", "run-1", "Build task-iteration harness");
         let result = harness
             .run_initializer(request)
             .await
@@ -1620,9 +1620,9 @@ mod tests {
 
         let session = ChatSession::new("session-coding", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-code-1"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-code-1"))
             .await
-            .expect("coding run should succeed");
+            .expect("task iteration should succeed");
 
         assert!(result.no_pending_features);
         assert!(result.validated);
@@ -1655,9 +1655,11 @@ mod tests {
 
         let session = ChatSession::new("session-stream", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-stream-1").enable_streaming())
+            .run_task_iteration(
+                TaskIterationRequest::new(session, "run-stream-1").enable_streaming(),
+            )
             .await
-            .expect("streaming coding run should succeed");
+            .expect("streaming task iteration should succeed");
 
         assert!(result.used_stream);
         assert!(result.validated);
@@ -1682,9 +1684,9 @@ mod tests {
 
         let session = ChatSession::new("session-unvalidated", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-code-2"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-code-2"))
             .await
-            .expect("coding run should complete");
+            .expect("task iteration should complete");
 
         assert!(!result.validated);
 
@@ -1708,9 +1710,9 @@ mod tests {
 
         let session = ChatSession::new("session-builder", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-builder-1"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-builder-1"))
             .await
-            .expect("coding run should succeed");
+            .expect("task iteration should succeed");
 
         assert_eq!(result.assistant_message.as_deref(), Some("tool-complete"));
 
@@ -1722,7 +1724,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn runtime_run_selects_initializer_then_coding_phase() {
+    async fn runtime_run_selects_initializer_then_task_iteration_phase() {
         let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
         let harness = Harness::builder(memory.clone())
             .provider(Arc::new(FakeProvider))
@@ -1752,7 +1754,7 @@ mod tests {
             .await
             .expect("second phase should run");
 
-        assert!(matches!(second, RuntimeRunOutcome::Coding(_)));
+        assert!(matches!(second, RuntimeRunOutcome::TaskIteration(_)));
     }
 
     #[tokio::test]
@@ -1786,9 +1788,9 @@ mod tests {
 
         let session = ChatSession::new("session-selector", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-selector-1"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-selector-1"))
             .await
-            .expect("coding run should succeed");
+            .expect("task iteration should succeed");
 
         assert_eq!(result.selected_feature_id.as_deref(), Some("feature-b"));
     }
@@ -1831,7 +1833,7 @@ mod tests {
             .select_phase(&SessionId::from("session-phase"))
             .await
             .expect("phase should resolve");
-        assert_eq!(phase_after, HarnessPhase::Coding);
+        assert_eq!(phase_after, HarnessPhase::TaskIteration);
     }
 
     #[tokio::test]
@@ -1913,7 +1915,7 @@ mod tests {
             .await
             .expect("runtime run should code");
 
-        assert!(matches!(outcome, RuntimeRunOutcome::Coding(_)));
+        assert!(matches!(outcome, RuntimeRunOutcome::TaskIteration(_)));
 
         let request = provider.latest_request();
         assert!(request.stream);
@@ -1967,9 +1969,9 @@ mod tests {
             "gpt-4o-mini",
         );
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-retry-validation"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-retry-validation"))
             .await
-            .expect("coding run should succeed after retry");
+            .expect("task iteration should succeed after retry");
 
         assert!(result.validated);
     }
@@ -1993,9 +1995,9 @@ mod tests {
 
         let session = ChatSession::new("session-turn-budget", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-turn-budget"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-turn-budget"))
             .await
-            .expect("coding run should complete with validation failure");
+            .expect("task iteration should complete with validation failure");
 
         assert!(!result.validated);
     }
@@ -2022,7 +2024,7 @@ mod tests {
 
         let session = ChatSession::new("session-chat-retry", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-chat-retry"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-chat-retry"))
             .await
             .expect("chat error should be retried successfully");
 
@@ -2038,7 +2040,7 @@ mod tests {
 
         let session = ChatSession::new("session-no-early-done", ProviderId::OpenAi, "gpt-4o-mini");
         let error = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-no-early-done"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-no-early-done"))
             .await
             .expect_err("selector returning none should fail completion gate");
 
@@ -2076,9 +2078,9 @@ mod tests {
         let session =
             ChatSession::new("session-completion-gate", ProviderId::OpenAi, "gpt-4o-mini");
         let result = harness
-            .run_coding_iteration(CodingRunRequest::new(session, "run-completion-gate"))
+            .run_task_iteration(TaskIterationRequest::new(session, "run-completion-gate"))
             .await
-            .expect("coding run should succeed");
+            .expect("task iteration should succeed");
 
         assert!(result.validated);
         assert!(!result.no_pending_features);
