@@ -4,21 +4,15 @@ Fiddlesticks is a Rust workspace for building provider-agnostic chat and agent r
 
 The core architecture is now in place across focused crates, with `fiddlesticks` as the recommended single dependency for application code.
 
-## Workspace Architecture
+## Crates
 
-```text
-fcommon (shared primitives)
-   |
-   +--> fprovider (model/provider abstraction + adapters)
-   +--> ftooling (tool registration + execution runtime)
-            |
-            +--> fchat (chat turn orchestration)
-            +--> fmemory (harness state + transcript persistence)
-                         |
-                         +--> fharness (initializer + task-iteration orchestration)
-
-fiddlesticks (facade over all workspace crates)
-```
+- fcommon (shared primitives)
+- fprovider (model/provider abstraction + adapters)
+- ftooling (tool registration + execution runtime)
+- fchat (chat turn orchestration)
+- fmemory (harness state + transcript persistence)
+- fharness (initializer + task-iteration orchestration)
+- fiddlesticks (facade over all workspace crates)
 
 ## Recommended Dependency
 
