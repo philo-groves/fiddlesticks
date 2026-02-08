@@ -128,39 +128,25 @@ async fn complete_maps_openai_response_to_provider_response() {
 }
 
 #[tokio::test]
-async fn stream_prefers_browser_session_when_api_key_missing() {
+async fn stream_rejects_browser_session_without_api_key() {
     let credentials = Arc::new(SecureCredentialManager::new());
     credentials
-        .set_openai_browser_session("session-xyz", None)
+        .set_browser_session(ProviderId::OpenAi, "session-xyz", None)
         .expect("session should set");
 
     let transport = Arc::new(FakeTransport::default());
     let provider = OpenAiProvider::new(credentials, transport.clone());
     let request = ModelRequest::new("gpt-4o-mini", vec![Message::new(Role::User, "hi")]);
 
-    let _stream = provider
-        .stream(request)
-        .await
-        .expect("stream should succeed");
+    let error = match provider.stream(request).await {
+        Ok(_) => panic!("stream should reject browser-only auth"),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind, fprovider::ProviderErrorKind::Authentication);
+    assert_eq!(error.message, "no OpenAI API key configured");
 
-    let auth = transport
-        .captured_auth
-        .lock()
-        .expect("auth lock")
-        .clone()
-        .expect("auth should be captured");
-    assert_eq!(
-        auth,
-        CapturedAuth("browser_session", "session-xyz".to_string())
-    );
-
-    let captured_request = transport
-        .captured_request
-        .lock()
-        .expect("request lock")
-        .clone()
-        .expect("request should be captured");
-    assert!(captured_request.stream);
+    let auth = transport.captured_auth.lock().expect("auth lock").clone();
+    assert_eq!(auth, None);
 }
 
 #[tokio::test]
@@ -175,5 +161,5 @@ async fn missing_openai_credentials_returns_auth_error() {
         .await
         .expect_err("missing creds should fail");
     assert_eq!(error.kind, fprovider::ProviderErrorKind::Authentication);
-    assert_eq!(error.message, "no OpenAI credentials configured");
+    assert_eq!(error.message, "no OpenAI API key configured");
 }

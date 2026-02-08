@@ -170,14 +170,9 @@ while let Some(event) = events.next().await {
 }
 ```
 
-### 7) OpenAI auth precedence policy
+### 7) OpenAI auth policy
 
-When `provider-openai` is enabled, `OpenAiProvider` resolves credentials in this strict order:
-
-1. API key configured via `SecureCredentialManager::set_openai_api_key`
-2. Browser session configured via `SecureCredentialManager::set_openai_browser_session`
-
-Browser sessions are only used if no API key is configured. If a browser session has `expires_at` set and the timestamp is in the past, authentication fails with an authentication error instead of falling through to transport calls.
+When `provider-openai` is enabled, `OpenAiProvider` only uses API key credentials configured via `SecureCredentialManager::set_openai_api_key`.
 
 ### 8) Standard retry/backoff and operational hooks
 

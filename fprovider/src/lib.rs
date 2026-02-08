@@ -303,7 +303,7 @@ mod tests {
 
     #[cfg(feature = "provider-openai")]
     #[test]
-    fn openai_helpers_validate_and_store_credentials() {
+    fn openai_helpers_validate_and_store_api_key() {
         let manager = SecureCredentialManager::new();
 
         let err = manager
@@ -320,26 +320,10 @@ mod tests {
             .expect("openai key read should work");
         assert_eq!(key, Some("sk-test-123".to_string()));
 
-        manager
-            .set_openai_browser_session("browser-session", None)
-            .expect("openai browser session should store");
-
         let kind = manager
             .credential_kind(ProviderId::OpenAi)
             .expect("openai kind should be available");
-        assert_eq!(kind, Some(CredentialKind::BrowserSession));
-
-        let no_api_key = manager
-            .with_api_key(ProviderId::OpenAi, |value| value.to_string())
-            .expect("api key lookup should work");
-        assert_eq!(no_api_key, None);
-
-        let session_token = manager
-            .with_browser_session(ProviderId::OpenAi, |session| {
-                session.session_token.expose().to_string()
-            })
-            .expect("session lookup should work");
-        assert_eq!(session_token, Some("browser-session".to_string()));
+        assert_eq!(kind, Some(CredentialKind::ApiKey));
     }
 
     fn block_on<F: Future>(future: F) -> F::Output {
