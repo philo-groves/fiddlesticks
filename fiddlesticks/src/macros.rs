@@ -35,8 +35,11 @@ macro_rules! fs_session {
     ($session_id:expr, opencode_zen, $model:expr $(,)?) => {
         $crate::ChatSession::new($session_id, $crate::ProviderId::OpenCodeZen, $model)
     };
+    ($session_id:expr, anthropic, $model:expr $(,)?) => {
+        $crate::ChatSession::new($session_id, $crate::ProviderId::Anthropic, $model)
+    };
     ($session_id:expr, claude, $model:expr $(,)?) => {
-        $crate::ChatSession::new($session_id, $crate::ProviderId::Claude, $model)
+        $crate::ChatSession::new($session_id, $crate::ProviderId::Anthropic, $model)
     };
     ($session_id:expr, $provider:expr, $model:expr $(,)?) => {
         $crate::ChatSession::new($session_id, $provider, $model)
@@ -49,8 +52,12 @@ macro_rules! fs_session {
         $crate::ChatSession::new($session_id, $crate::ProviderId::OpenCodeZen, $model)
             .with_system_prompt($system_prompt)
     };
+    ($session_id:expr, anthropic, $model:expr, $system_prompt:expr $(,)?) => {
+        $crate::ChatSession::new($session_id, $crate::ProviderId::Anthropic, $model)
+            .with_system_prompt($system_prompt)
+    };
     ($session_id:expr, claude, $model:expr, $system_prompt:expr $(,)?) => {
-        $crate::ChatSession::new($session_id, $crate::ProviderId::Claude, $model)
+        $crate::ChatSession::new($session_id, $crate::ProviderId::Anthropic, $model)
             .with_system_prompt($system_prompt)
     };
     ($session_id:expr, $provider:expr, $model:expr, $system_prompt:expr $(,)?) => {

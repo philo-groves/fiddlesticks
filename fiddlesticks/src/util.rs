@@ -38,7 +38,7 @@ pub fn parse_provider_id(value: &str) -> Option<ProviderId> {
     match value.trim().to_ascii_lowercase().as_str() {
         "opencode-zen" | "opencode_zen" | "opencode" | "zen" => Some(ProviderId::OpenCodeZen),
         "openai" => Some(ProviderId::OpenAi),
-        "claude" | "anthropic" => Some(ProviderId::Claude),
+        "anthropic" | "claude" => Some(ProviderId::Anthropic),
         _ => None,
     }
 }
@@ -53,7 +53,8 @@ mod tests {
     fn parse_provider_id_supports_aliases() {
         assert_eq!(parse_provider_id("openai"), Some(ProviderId::OpenAi));
         assert_eq!(parse_provider_id("Zen"), Some(ProviderId::OpenCodeZen));
-        assert_eq!(parse_provider_id("anthropic"), Some(ProviderId::Claude));
+        assert_eq!(parse_provider_id("anthropic"), Some(ProviderId::Anthropic));
+        assert_eq!(parse_provider_id("claude"), Some(ProviderId::Anthropic));
         assert_eq!(parse_provider_id("unknown"), None);
     }
 

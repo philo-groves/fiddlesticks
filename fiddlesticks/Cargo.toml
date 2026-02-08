@@ -11,6 +11,7 @@ repository = "https://github.com/philogroves/fiddlesticks"
 default = ["provider-openai"]
 provider-openai = ["fprovider/provider-openai"]
 provider-opencode-zen = ["fprovider/provider-opencode-zen"]
+provider-anthropic = ["fprovider/provider-anthropic"]
 provider-claude = ["fprovider/provider-claude"]
 
 [dependencies]

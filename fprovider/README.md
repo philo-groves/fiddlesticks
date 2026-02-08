@@ -5,7 +5,7 @@
 Its job is simple:
 > Provide a clean, provider-agnostic way to talk to language models.
 
-Everything else in the system (chat, agents, tools) depends on *this* layer instead of directly coupling to OpenAI, Claude, or anything else.
+Everything else in the system (chat, agents, tools) depends on *this* layer instead of directly coupling to OpenAI, Anthropic, or anything else.
 
 ---
 
@@ -32,7 +32,7 @@ The currently supported providers are:
 
 - **OpenCode Zen**
 - **OpenAI**
-- **Claude (Anthropic)**
+- **Anthropic**
 
 Each provider implements the same core traits so they can be swapped without changing agent or chat logic.
 
@@ -220,5 +220,5 @@ let _ = value;
 ## Feature flags
 
 - `provider-openai`: OpenAI adapter and HTTP transport
-- `provider-claude`: Claude adapter surface (in progress)
+- `provider-anthropic`: Anthropic adapter over OpenAI-compatible transport
 - `provider-opencode-zen`: OpenCode Zen adapter over OpenAI-compatible transport

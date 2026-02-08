@@ -174,7 +174,7 @@ Docs: `fharness/README.md`
 
 - `provider-openai`
 - `provider-opencode-zen`
-- `provider-claude`
+- `provider-anthropic`
 
 ## Development
 

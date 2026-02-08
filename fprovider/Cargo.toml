@@ -24,7 +24,8 @@ provider-openai = [
     "dep:futures-util",
     "dep:async-stream",
 ]
-provider-claude = []
+provider-anthropic = ["provider-openai"]
+provider-claude = ["provider-anthropic"]
 
 [dependencies]
 fcommon = { path = "../fcommon" }

@@ -83,7 +83,7 @@ mod tests {
     fn provider_id_display_is_stable() {
         assert_eq!(ProviderId::OpenCodeZen.to_string(), "opencode-zen");
         assert_eq!(ProviderId::OpenAi.to_string(), "openai");
-        assert_eq!(ProviderId::Claude.to_string(), "claude");
+        assert_eq!(ProviderId::Anthropic.to_string(), "anthropic");
     }
 
     #[test]
@@ -244,31 +244,31 @@ mod tests {
         let manager = SecureCredentialManager::new();
 
         manager
-            .set_api_key(ProviderId::Claude, "claude-key")
+            .set_api_key(ProviderId::Anthropic, "anthropic-key")
             .expect("api key set should work");
         assert!(
             manager
-                .has_credentials(ProviderId::Claude)
+                .has_credentials(ProviderId::Anthropic)
                 .expect("has_credentials should work")
         );
 
         let kind = manager
-            .credential_kind(ProviderId::Claude)
+            .credential_kind(ProviderId::Anthropic)
             .expect("kind lookup should work");
         assert_eq!(kind, Some(CredentialKind::ApiKey));
 
         let captured = manager
-            .with_api_key(ProviderId::Claude, |value| value.to_string())
+            .with_api_key(ProviderId::Anthropic, |value| value.to_string())
             .expect("api key read should work");
-        assert_eq!(captured, Some("claude-key".to_string()));
+        assert_eq!(captured, Some("anthropic-key".to_string()));
 
         let cleared = manager
-            .clear(ProviderId::Claude)
+            .clear(ProviderId::Anthropic)
             .expect("clear should work");
         assert!(cleared);
         assert!(
             !manager
-                .has_credentials(ProviderId::Claude)
+                .has_credentials(ProviderId::Anthropic)
                 .expect("has_credentials should work")
         );
     }

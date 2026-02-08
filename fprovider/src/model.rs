@@ -10,7 +10,7 @@ use crate::{ProviderError, ProviderErrorKind};
 pub enum ProviderId {
     OpenCodeZen,
     OpenAi,
-    Claude,
+    Anthropic,
 }
 
 impl Display for ProviderId {
@@ -18,7 +18,7 @@ impl Display for ProviderId {
         let id = match self {
             Self::OpenCodeZen => "opencode-zen",
             Self::OpenAi => "openai",
-            Self::Claude => "claude",
+            Self::Anthropic => "anthropic",
         };
 
         f.write_str(id)
