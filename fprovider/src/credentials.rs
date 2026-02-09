@@ -1,4 +1,23 @@
 //! Secure in-memory credential and browser-session management.
+//!
+//! ```rust
+//! use fprovider::{ProviderId, SecureCredentialManager};
+//!
+//! let manager = SecureCredentialManager::new();
+//! manager
+//!     .set_api_key(ProviderId::OpenAi, "sk-test-123")
+//!     .expect("api key should store");
+//!
+//! let has_key = manager
+//!     .has_credentials(ProviderId::OpenAi)
+//!     .expect("lookup should succeed");
+//! assert!(has_key);
+//!
+//! let copied = manager
+//!     .with_api_key(ProviderId::OpenAi, |value| value.to_string())
+//!     .expect("read should succeed");
+//! assert_eq!(copied, Some("sk-test-123".to_string()));
+//! ```
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};

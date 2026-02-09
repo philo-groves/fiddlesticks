@@ -1,4 +1,14 @@
 //! Shared provider error kinds and error value helpers.
+//!
+//! ```rust
+//! use fprovider::ProviderError;
+//!
+//! let auth = ProviderError::authentication("bad key");
+//! assert!(!auth.retryable);
+//!
+//! let timeout = ProviderError::timeout("temporary timeout");
+//! assert!(timeout.retryable);
+//! ```
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};

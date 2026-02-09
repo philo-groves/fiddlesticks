@@ -1,4 +1,12 @@
 //! Provider registry for runtime provider lookup and swapping.
+//!
+//! ```rust
+//! use fprovider::ProviderRegistry;
+//!
+//! let registry = ProviderRegistry::new();
+//! assert!(registry.is_empty());
+//! assert_eq!(registry.len(), 0);
+//! ```
 
 use std::sync::Arc;
 

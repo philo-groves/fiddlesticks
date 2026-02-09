@@ -1,4 +1,11 @@
 //! Streaming event contracts and in-memory stream utilities.
+//!
+//! ```rust
+//! use fprovider::{BoxedEventStream, StreamEvent, VecEventStream};
+//!
+//! let stream = VecEventStream::new(vec![Ok(StreamEvent::TextDelta("hello".into()))]);
+//! let _boxed: BoxedEventStream<'static> = Box::pin(stream);
+//! ```
 
 use std::collections::VecDeque;
 use std::pin::Pin;

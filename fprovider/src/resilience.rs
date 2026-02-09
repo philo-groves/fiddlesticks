@@ -1,4 +1,17 @@
 //! Standard retry/backoff policy and operational hook contracts.
+//!
+//! ```rust
+//! use std::time::Duration;
+//!
+//! use fprovider::{ProviderError, RetryPolicy};
+//!
+//! let policy = RetryPolicy::new(3);
+//! let timeout = ProviderError::timeout("temporary network issue");
+//! assert!(policy.should_retry(1, &timeout));
+//!
+//! let delay = policy.backoff_for_attempt(2);
+//! assert!(delay >= Duration::from_millis(200));
+//! ```
 
 use std::future::Future;
 use std::time::Duration;

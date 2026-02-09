@@ -1,4 +1,19 @@
 //! Provider-agnostic request, response, and message model types.
+//!
+//! ```rust
+//! use fprovider::{Message, ModelRequest, ProviderErrorKind, Role};
+//!
+//! let ok = ModelRequest::new_validated(
+//!     "gpt-4o-mini",
+//!     vec![Message::new(Role::User, "Summarize this diff")],
+//! );
+//! assert!(ok.is_ok());
+//!
+//! let err = ModelRequest::new_validated("", vec![Message::new(Role::User, "hi")])
+//!     .err()
+//!     .expect("empty model should fail");
+//! assert_eq!(err.kind, ProviderErrorKind::InvalidRequest);
+//! ```
 
 use std::fmt::{Display, Formatter};
 

@@ -1,4 +1,16 @@
 //! Crate entrypoint that wires modules and public re-exports.
+//!
+//! ```rust
+//! use fprovider::{Message, ModelRequest, ProviderId, Role};
+//!
+//! let request = ModelRequest::builder("gpt-4o-mini")
+//!     .message(Message::new(Role::User, "hello"))
+//!     .build()
+//!     .expect("request should validate");
+//!
+//! assert_eq!(request.model, "gpt-4o-mini");
+//! assert_eq!(ProviderId::OpenAi.to_string(), "openai");
+//! ```
 
 pub mod adapters;
 mod credentials;
