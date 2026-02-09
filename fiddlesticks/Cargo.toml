@@ -1,6 +1,6 @@
 [package]
 name = "fiddlesticks"
-version = "0.9.91"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -17,12 +17,12 @@ provider-opencode-zen = ["fprovider/provider-opencode-zen"]
 provider-anthropic = ["fprovider/provider-anthropic"]
 
 [dependencies]
-fchat = { path = "../fchat", version = "0.9.91" }
-fcommon = { path = "../fcommon", version = "0.9.91" }
-fharness = { path = "../fharness", version = "0.9.91" }
-fmemory = { path = "../fmemory", version = "0.9.91" }
-fprovider = { path = "../fprovider", version = "0.9.91" }
-ftooling = { path = "../ftooling", version = "0.9.91" }
+fchat = { path = "../fchat", version = "1.0.0" }
+fcommon = { path = "../fcommon", version = "1.0.0" }
+fharness = { path = "../fharness", version = "1.0.0" }
+fmemory = { path = "../fmemory", version = "1.0.0" }
+fprovider = { path = "../fprovider", version = "1.0.0" }
+ftooling = { path = "../ftooling", version = "1.0.0" }
 reqwest = { version = "0.12", default-features = true }
 
 [dev-dependencies]

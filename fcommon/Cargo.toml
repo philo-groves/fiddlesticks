@@ -1,6 +1,6 @@
 [package]
 name = "fcommon"
-version = "0.9.91"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]

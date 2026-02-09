@@ -1,6 +1,6 @@
 [package]
 name = "ftooling"
-version = "0.9.91"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -11,10 +11,10 @@ keywords = ["ai", "tools", "function-calling", "runtime", "orchestration"]
 categories = ["asynchronous", "development-tools"]
 
 [dependencies]
-fcommon = { path = "../fcommon", version = "0.9.91" }
+fcommon = { path = "../fcommon", version = "1.0.0" }
 futures-timer = "3"
 futures-util = "0.3"
-fprovider = { path = "../fprovider", version = "0.9.91" }
+fprovider = { path = "../fprovider", version = "1.0.0" }
 serde_json = "1"
 
 [dev-dependencies]
