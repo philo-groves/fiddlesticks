@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project after 1.0.0 will be documented in this file.
 
 The format is based on Keep a Changelog and this project follows Semantic Versioning for the `fiddlesticks` facade crate.
 
@@ -31,9 +31,9 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 - None.
 ```
 
-## [1.0.0] - Unreleased
+## [1.0.0] - Not yet release
 
-Initial 1.0.0 changelog baseline. No migration items yet because there are currently no framework users.
+Changelog for 1.0.1 will appear here.
 
 ### Migration Notes
 
