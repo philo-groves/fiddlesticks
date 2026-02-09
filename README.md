@@ -19,6 +19,8 @@ The core architecture is spread across focused crates, with `fiddlesticks` as th
 
 Use the facade crate unless you intentionally want direct low-level crate control.
 
+The underlying crates are publishable and can be used directly, but they are more likely to receive breaking changes as internals evolve. For long-term stability, prefer `fiddlesticks` as the primary dependency.
+
 ```toml
 [dependencies]
 fiddlesticks = { path = "./fiddlesticks", features = ["provider-openai"] }
@@ -212,7 +214,7 @@ cargo test --workspace --all-features
 
 - `fiddlesticks` follows strict semver for public API compatibility: breaking changes are only released in new major versions.
 - Secondary crates in this workspace (`fcommon`, `fprovider`, `ftooling`, `fchat`, `fmemory`, `fharness`, `fobserve`) are internal building blocks and may receive breaking changes at any time.
-- Application and downstream integration code should depend on `fiddlesticks` as the stable boundary and avoid direct coupling to secondary crates unless intentionally opting into unstable internals.
+- Application and downstream integration code should prefer `fiddlesticks` as the stable boundary.
 - Track release notes in `CHANGELOG.md` and keep each release entry updated as changes land.
 - Branch naming and flow for minor release development:
   - Use `feature/*` and `fix/*` branch names where practical.
