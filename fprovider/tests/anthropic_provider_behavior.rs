@@ -30,8 +30,8 @@ impl OpenAiTransport for FakeTransport {
         Box::pin(async move {
             *self.captured_request.lock().expect("request lock") = Some(request);
             *self.captured_auth.lock().expect("auth lock") = Some(match auth {
-                OpenAiAuth::ApiKey(value) => CapturedAuth(value),
-                OpenAiAuth::BrowserSession(value) => CapturedAuth(value),
+                OpenAiAuth::ApiKey(value) => CapturedAuth(value.expose().to_string()),
+                OpenAiAuth::BrowserSession(value) => CapturedAuth(value.expose().to_string()),
             });
 
             Ok(OpenAiResponse {
@@ -62,8 +62,8 @@ impl OpenAiTransport for FakeTransport {
         Box::pin(async move {
             *self.captured_request.lock().expect("request lock") = Some(request);
             *self.captured_auth.lock().expect("auth lock") = Some(match auth {
-                OpenAiAuth::ApiKey(value) => CapturedAuth(value),
-                OpenAiAuth::BrowserSession(value) => CapturedAuth(value),
+                OpenAiAuth::ApiKey(value) => CapturedAuth(value.expose().to_string()),
+                OpenAiAuth::BrowserSession(value) => CapturedAuth(value.expose().to_string()),
             });
 
             let output = futures_util::stream::iter(

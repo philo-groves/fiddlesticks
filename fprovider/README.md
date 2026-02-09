@@ -174,7 +174,16 @@ while let Some(event) = events.next().await {
 
 When `provider-openai` is enabled, `OpenAiProvider` only uses API key credentials configured via `SecureCredentialManager::set_openai_api_key`.
 
-### 8) Standard retry/backoff and operational hooks
+### 8) Credential lifecycle and auditing
+
+`SecureCredentialManager` now supports lifecycle metadata and access auditing hooks:
+
+- `set_api_key_with_ttl(...)` to expire API keys after a fixed TTL
+- `rotate_api_key(...)` and `revoke(...)` for explicit key rotation/revocation
+- `credential_metadata(...)` for sanitized metadata (`created_at`, `expires_at`, `last_used_at`, access counters)
+- `with_observer(...)` for audit events that include provider/kind/action and never include secret values
+
+### 9) Standard retry/backoff and operational hooks
 
 `fprovider` exposes provider-agnostic resilience primitives:
 

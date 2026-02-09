@@ -7,7 +7,7 @@ use fprovider::adapters::openai::{
 };
 use fprovider::{
     Message, ModelProvider, ModelRequest, ProviderError, ProviderFuture, ProviderId, Role,
-    SecureCredentialManager,
+    SecretString, SecureCredentialManager,
 };
 
 #[derive(Debug, Default)]
@@ -80,6 +80,6 @@ async fn openai_provider_uses_openai_credentials_and_maps_completion() {
 
     assert_eq!(
         seen_auth,
-        OpenAiAuth::ApiKey("sk-integration-123".to_string())
+        OpenAiAuth::ApiKey(SecretString::new("sk-integration-123"))
     );
 }

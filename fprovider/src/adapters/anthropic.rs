@@ -136,9 +136,9 @@ impl SecureCredentialManager {
 
 fn resolve_anthropic_api_key(
     credentials: &SecureCredentialManager,
-) -> Result<String, ProviderError> {
+) -> Result<crate::SecretString, ProviderError> {
     credentials
-        .with_api_key(ProviderId::Anthropic, |value| value.to_string())?
+        .api_key(ProviderId::Anthropic)?
         .ok_or_else(|| ProviderError::authentication("no Anthropic credentials configured"))
 }
 

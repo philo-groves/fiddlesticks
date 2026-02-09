@@ -5,12 +5,12 @@ use std::time::Duration;
 
 use reqwest::Client;
 
-use crate::{ModelProvider, ProviderError, ProviderId, SecureCredentialManager};
+use crate::{ModelProvider, ProviderError, ProviderId, SecretString, SecureCredentialManager};
 
 #[derive(Debug, Clone)]
 pub struct ProviderBuildConfig {
     pub provider_id: ProviderId,
-    pub api_key: String,
+    pub api_key: SecretString,
     pub timeout: Duration,
 }
 
@@ -18,7 +18,7 @@ impl ProviderBuildConfig {
     pub fn new(provider_id: ProviderId, api_key: impl Into<String>) -> Self {
         Self {
             provider_id,
-            api_key: api_key.into(),
+            api_key: SecretString::new(api_key),
             timeout: Duration::from_secs(90),
         }
     }
@@ -39,7 +39,7 @@ pub fn build_provider_from_api_key(
 pub fn build_provider_with_config(
     config: ProviderBuildConfig,
 ) -> Result<Arc<dyn ModelProvider>, ProviderError> {
-    let api_key = config.api_key.trim().to_string();
+    let api_key = config.api_key.expose().trim().to_string();
     if api_key.is_empty() {
         return Err(ProviderError::authentication(
             "provider API key must not be empty",

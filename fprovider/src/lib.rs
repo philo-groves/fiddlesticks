@@ -11,7 +11,8 @@ mod resilience;
 mod stream;
 
 pub use credentials::{
-    BrowserLoginSession, CredentialKind, ProviderCredential, SecretString, SecureCredentialManager,
+    BrowserLoginSession, CredentialAccessAction, CredentialAccessEvent, CredentialAccessObserver,
+    CredentialKind, CredentialMetadata, ProviderCredential, SecretString, SecureCredentialManager,
 };
 pub use error::{ProviderError, ProviderErrorKind};
 pub use fcommon::{BoxFuture, MetadataMap};
@@ -29,8 +30,9 @@ mod tests {
     use super::*;
     use futures_core::Stream;
     use std::future::Future;
+    use std::sync::{Arc, Mutex};
     use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
-    use std::time::{Duration, UNIX_EPOCH};
+    use std::time::{Duration, SystemTime};
 
     #[derive(Debug)]
     struct FakeProvider;
@@ -276,7 +278,9 @@ mod tests {
     #[test]
     fn secure_credential_manager_handles_browser_sessions() {
         let manager = SecureCredentialManager::new();
-        let expires_at = UNIX_EPOCH + Duration::from_secs(1234);
+        let expires_at = SystemTime::now()
+            .checked_add(Duration::from_secs(1234))
+            .expect("future expiry should be representable");
 
         manager
             .set_browser_session(ProviderId::OpenCodeZen, "session-token", Some(expires_at))
@@ -299,6 +303,88 @@ mod tests {
             captured,
             Some(("session-token".to_string(), Some(expires_at)))
         );
+    }
+
+    #[test]
+    fn credential_manager_tracks_metadata_and_ttl() {
+        let manager = SecureCredentialManager::new();
+
+        manager
+            .set_api_key_with_ttl(
+                ProviderId::OpenAi,
+                "sk-test-ttl",
+                Duration::from_millis(10),
+            )
+            .expect("api key with ttl should be stored");
+
+        let metadata = manager
+            .credential_metadata(ProviderId::OpenAi)
+            .expect("metadata lookup should work")
+            .expect("metadata should exist");
+        assert!(metadata.expires_at.is_some());
+        assert_eq!(metadata.access_count, 0);
+
+        let key = manager
+            .api_key(ProviderId::OpenAi)
+            .expect("api key lookup should work")
+            .expect("key should exist");
+        assert_eq!(key.expose(), "sk-test-ttl");
+
+        let metadata = manager
+            .credential_metadata(ProviderId::OpenAi)
+            .expect("metadata lookup should work")
+            .expect("metadata should still exist");
+        assert_eq!(metadata.access_count, 1);
+        assert!(metadata.last_used_at.is_some());
+
+        std::thread::sleep(Duration::from_millis(15));
+        assert!(
+            !manager
+                .has_credentials(ProviderId::OpenAi)
+                .expect("ttl expiry check should work")
+        );
+    }
+
+    #[test]
+    fn credential_manager_observer_receives_sanitized_events() {
+        #[derive(Default)]
+        struct Recorder {
+            events: Mutex<Vec<CredentialAccessEvent>>,
+        }
+
+        impl CredentialAccessObserver for Recorder {
+            fn on_event(&self, event: CredentialAccessEvent) {
+                self.events.lock().expect("observer lock poisoned").push(event);
+            }
+        }
+
+        let recorder = Arc::new(Recorder::default());
+        let manager = SecureCredentialManager::with_observer(recorder.clone());
+
+        manager
+            .set_api_key(ProviderId::Anthropic, "sk-ant-observer")
+            .expect("api key set should work");
+        let _ = manager
+            .with_api_key(ProviderId::Anthropic, |key| key.len())
+            .expect("api key read should work");
+        manager
+            .revoke(ProviderId::Anthropic)
+            .expect("revoke should work");
+
+        let events = recorder.events.lock().expect("observer lock poisoned");
+        assert!(events.iter().any(
+            |event| event.action == CredentialAccessAction::Set
+                && event.kind == Some(CredentialKind::ApiKey)
+        ));
+        assert!(events
+            .iter()
+            .any(|event| event.action == CredentialAccessAction::AccessGranted));
+        assert!(events
+            .iter()
+            .any(|event| event.action == CredentialAccessAction::Cleared));
+        for event in events.iter() {
+            assert!(!format!("{event:?}").contains("sk-ant-observer"));
+        }
     }
 
     #[cfg(feature = "provider-openai")]

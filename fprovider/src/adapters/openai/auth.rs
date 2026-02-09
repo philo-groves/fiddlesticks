@@ -24,9 +24,7 @@ impl SecureCredentialManager {
 pub(crate) fn resolve_openai_auth(
     credentials: &SecureCredentialManager,
 ) -> Result<OpenAiAuth, ProviderError> {
-    if let Some(api_key) =
-        credentials.with_api_key(ProviderId::OpenAi, |value| value.to_string())?
-    {
+    if let Some(api_key) = credentials.api_key(ProviderId::OpenAi)? {
         return Ok(OpenAiAuth::ApiKey(api_key));
     }
 

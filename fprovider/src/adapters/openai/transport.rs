@@ -64,10 +64,10 @@ impl OpenAiHttpTransport {
         auth: &OpenAiAuth,
     ) -> reqwest::RequestBuilder {
         match auth {
-            OpenAiAuth::ApiKey(key) => builder.bearer_auth(key),
+            OpenAiAuth::ApiKey(key) => builder.bearer_auth(key.expose()),
             OpenAiAuth::BrowserSession(token) => builder.header(
                 "Cookie",
-                format!("__Secure-next-auth.session-token={token}"),
+                format!("__Secure-next-auth.session-token={}", token.expose()),
             ),
         }
     }

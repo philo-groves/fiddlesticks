@@ -49,7 +49,7 @@ impl OpenCodeZenProvider {
 
     pub async fn list_models(&self) -> Result<Vec<String>, ProviderError> {
         let key = resolve_zen_api_key(&self.credentials)?;
-        list_zen_models_with_api_key(key).await
+        list_zen_models_with_api_key(key.expose()).await
     }
 
     fn build_request(&self, request: ModelRequest, stream: bool) -> OpenAiRequest {
@@ -186,9 +186,11 @@ pub async fn list_zen_models_with_api_key(
     Ok(ids)
 }
 
-fn resolve_zen_api_key(credentials: &SecureCredentialManager) -> Result<String, ProviderError> {
+fn resolve_zen_api_key(
+    credentials: &SecureCredentialManager,
+) -> Result<crate::SecretString, ProviderError> {
     credentials
-        .with_api_key(ProviderId::OpenCodeZen, |value| value.to_string())?
+        .api_key(ProviderId::OpenCodeZen)?
         .ok_or_else(|| ProviderError::authentication("no OpenCode Zen credentials configured"))
 }
 

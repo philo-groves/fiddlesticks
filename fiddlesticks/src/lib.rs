@@ -32,7 +32,8 @@ pub use fmemory::{
     SqliteMemoryBackend, create_default_memory_backend, create_memory_backend,
 };
 pub use fprovider::{
-    BoxedEventStream, BrowserLoginSession, CredentialKind, Message, ModelEventStream,
+    BoxedEventStream, BrowserLoginSession, CredentialAccessAction, CredentialAccessEvent,
+    CredentialAccessObserver, CredentialKind, CredentialMetadata, Message, ModelEventStream,
     ModelProvider, ModelRequest, ModelRequestBuilder, ModelResponse, NoopOperationHooks,
     OutputItem, ProviderCredential, ProviderError, ProviderErrorKind, ProviderFuture, ProviderId,
     ProviderOperationHooks, ProviderRegistry, RetryPolicy, Role, SecretString,
@@ -88,7 +89,8 @@ pub mod memory {
 
 pub mod provider {
     pub use crate::{
-        BoxedEventStream, BrowserLoginSession, CredentialKind, Message, ModelEventStream,
+        BoxedEventStream, BrowserLoginSession, CredentialAccessAction, CredentialAccessEvent,
+        CredentialAccessObserver, CredentialKind, CredentialMetadata, Message, ModelEventStream,
         ModelProvider, ModelRequest, ModelRequestBuilder, ModelResponse, NoopOperationHooks,
         OutputItem, ProviderCredential, ProviderError, ProviderErrorKind, ProviderFuture,
         ProviderId, ProviderOperationHooks, ProviderRegistry, RetryPolicy, Role, SecretString,

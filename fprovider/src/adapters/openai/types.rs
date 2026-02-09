@@ -3,8 +3,8 @@
 use std::fmt::Formatter;
 
 use crate::{
-    Message, ModelResponse, OutputItem, ProviderId, Role, StopReason, StreamEvent, TokenUsage,
-    ToolCall, ToolDefinition, ToolResult,
+    Message, ModelResponse, OutputItem, ProviderId, Role, SecretString, StopReason, StreamEvent,
+    TokenUsage, ToolCall, ToolDefinition, ToolResult,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -189,8 +189,8 @@ impl From<OpenAiUsage> for TokenUsage {
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum OpenAiAuth {
-    ApiKey(String),
-    BrowserSession(String),
+    ApiKey(SecretString),
+    BrowserSession(SecretString),
 }
 
 impl std::fmt::Debug for OpenAiAuth {
