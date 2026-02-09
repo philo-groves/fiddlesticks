@@ -1,4 +1,16 @@
 //! Stable provider construction surface for facade consumers.
+//!
+//! ```rust
+//! use std::time::Duration;
+//!
+//! use fiddlesticks::{ProviderBuildConfig, ProviderId};
+//!
+//! let config = ProviderBuildConfig::new(ProviderId::OpenAi, "test-key")
+//!     .with_timeout(Duration::from_secs(30));
+//!
+//! assert_eq!(config.provider_id, ProviderId::OpenAi);
+//! assert_eq!(config.timeout, Duration::from_secs(30));
+//! ```
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -36,6 +48,17 @@ pub fn build_provider_from_api_key(
     build_provider_with_config(ProviderBuildConfig::new(provider_id, api_key))
 }
 
+/// Builds a provider from a strict [`ProviderBuildConfig`].
+///
+/// Empty API keys are rejected before any HTTP calls are attempted.
+///
+/// ```rust
+/// use fiddlesticks::{ProviderBuildConfig, ProviderErrorKind, ProviderId, build_provider_with_config};
+///
+/// let result = build_provider_with_config(ProviderBuildConfig::new(ProviderId::OpenAi, "   "));
+/// let err = result.err().expect("empty API key should be rejected");
+/// assert_eq!(err.kind, ProviderErrorKind::Authentication);
+/// ```
 pub fn build_provider_with_config(
     config: ProviderBuildConfig,
 ) -> Result<Arc<dyn ModelProvider>, ProviderError> {

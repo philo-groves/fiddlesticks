@@ -1,3 +1,12 @@
+/// Creates a single chat [`Message`](crate::Message) from a role shorthand.
+///
+/// ```rust
+/// use fiddlesticks::{Role, fs_msg};
+///
+/// let message = fs_msg!(assistant => "Done.");
+/// assert_eq!(message.role, Role::Assistant);
+/// assert_eq!(message.content, "Done.");
+/// ```
 #[macro_export]
 macro_rules! fs_msg {
     (system => $content:expr $(,)?) => {
@@ -17,6 +26,20 @@ macro_rules! fs_msg {
     };
 }
 
+/// Creates a `Vec<Message>` from role/content pairs.
+///
+/// ```rust
+/// use fiddlesticks::{Role, fs_messages};
+///
+/// let messages = fs_messages![
+///     system => "You are concise.",
+///     user => "Summarize this repository.",
+/// ];
+///
+/// assert_eq!(messages.len(), 2);
+/// assert_eq!(messages[0].role, Role::System);
+/// assert_eq!(messages[1].role, Role::User);
+/// ```
 #[macro_export]
 macro_rules! fs_messages {
     () => {
@@ -27,6 +50,15 @@ macro_rules! fs_messages {
     };
 }
 
+/// Creates a [`ChatSession`](crate::ChatSession) with provider shorthand support.
+///
+/// ```rust
+/// use fiddlesticks::{ProviderId, fs_session};
+///
+/// let session = fs_session!("session-1", openai, "gpt-4o-mini", "Be concise.");
+/// assert_eq!(session.provider, ProviderId::OpenAi);
+/// assert_eq!(session.system_prompt.as_deref(), Some("Be concise."));
+/// ```
 #[macro_export]
 macro_rules! fs_session {
     ($session_id:expr, openai, $model:expr $(,)?) => {

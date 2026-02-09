@@ -3,6 +3,19 @@
 //! This crate is designed to be the single dependency for most applications.
 //! It exposes a curated, facade-owned API surface with stable namespace modules,
 //! runtime/provider helpers, and macros for common setup and request-building flows.
+//!
+//! ```rust
+//! use fiddlesticks::prelude::*;
+//!
+//! let session = fs_session!("session-1", openai, "gpt-4o-mini", "Be concise.");
+//! let request = turn(session, "Summarize this change.");
+//! let messages = fs_messages![
+//!     system => "You are direct.",
+//!     user => request.user_input,
+//! ];
+//!
+//! assert_eq!(messages.len(), 2);
+//! ```
 
 mod agent;
 mod macros;
@@ -22,7 +35,7 @@ pub use fharness::{
     AcceptAllValidator, ChatEventObserver, FailFastPolicy, FeatureSelector,
     FirstPendingFeatureSelector, Harness, HarnessBuilder, HarnessError, HarnessErrorKind,
     HarnessPhase, HealthChecker, InitializerRequest, InitializerResult, NoopHealthChecker,
-    OutcomeValidator, RunPolicy, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
+    OutcomeValidator, RunPolicy, RunPolicyMode, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
     TaskIterationResult,
 };
 pub use fmemory::{
@@ -73,7 +86,7 @@ pub mod harness {
         AcceptAllValidator, ChatEventObserver, FailFastPolicy, FeatureSelector,
         FirstPendingFeatureSelector, Harness, HarnessBuilder, HarnessError, HarnessErrorKind,
         HarnessPhase, HealthChecker, InitializerRequest, InitializerResult, NoopHealthChecker,
-        OutcomeValidator, RunPolicy, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
+        OutcomeValidator, RunPolicy, RunPolicyMode, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
         TaskIterationResult,
     };
 }

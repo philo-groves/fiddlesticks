@@ -1,4 +1,16 @@
 //! Runtime wiring helpers for chat and harness usage.
+//!
+//! ```rust
+//! use std::sync::Arc;
+//!
+//! use fiddlesticks::{ModelProvider, build_runtime_with_memory, in_memory_backend};
+//!
+//! fn wire_runtime(provider: Arc<dyn ModelProvider>) {
+//!     let memory = in_memory_backend();
+//!     let runtime = build_runtime_with_memory(provider, memory);
+//!     assert!(runtime.is_ok());
+//! }
+//! ```
 
 use std::sync::Arc;
 

@@ -1,4 +1,17 @@
 //! Small convenience constructors for common types.
+//!
+//! ```rust
+//! use fiddlesticks::{ProviderId, parse_provider_id, session, turn, user_message};
+//!
+//! let message = user_message("hello");
+//! assert_eq!(message.content, "hello");
+//!
+//! let chat_session = session("session-1", ProviderId::OpenAi, "gpt-4o-mini");
+//! let request = turn(chat_session, "Summarize this diff");
+//! assert_eq!(request.user_input, "Summarize this diff");
+//!
+//! assert_eq!(parse_provider_id("claude"), Some(ProviderId::Anthropic));
+//! ```
 
 use crate::{ChatSession, ChatTurnRequest, Message, ProviderId, Role, SessionId};
 
