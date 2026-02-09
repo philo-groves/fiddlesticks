@@ -213,6 +213,7 @@ cargo test --workspace --all-features
 - `fiddlesticks` follows strict semver for public API compatibility: breaking changes are only released in new major versions.
 - Secondary crates in this workspace (`fcommon`, `fprovider`, `ftooling`, `fchat`, `fmemory`, `fharness`, `fobserve`) are internal building blocks and may receive breaking changes at any time.
 - Application and downstream integration code should depend on `fiddlesticks` as the stable boundary and avoid direct coupling to secondary crates unless intentionally opting into unstable internals.
+- Track release notes in `CHANGELOG.md` and keep each release entry updated as changes land.
 - Branch naming and flow for minor release development:
   - Use `feature/*` and `fix/*` branch names where practical.
   - Merge feature and fix branches into the `prerelease` branch.
