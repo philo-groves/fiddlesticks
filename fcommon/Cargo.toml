@@ -10,4 +10,4 @@ repository = "https://github.com/philogroves/fiddlesticks"
 [dependencies]
 
 [lib]
-doctest = false
+doctest = true

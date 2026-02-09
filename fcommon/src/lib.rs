@@ -1,7 +1,31 @@
 //! Shared utilities and strongly-typed common values for workspace crates.
+//!
+//! ```rust
+//! use fcommon::{GenerationOptions, MetadataMap, SessionId, TraceId};
+//!
+//! let session = SessionId::from("session-1");
+//! let trace = TraceId::new("trace-1");
+//! let mut metadata = MetadataMap::new();
+//! metadata.insert("tenant".to_string(), "acme".to_string());
+//!
+//! let options = GenerationOptions::default().with_temperature(0.3).enable_streaming();
+//! assert_eq!(session.as_str(), "session-1");
+//! assert_eq!(trace.to_string(), "trace-1");
+//! assert!(options.stream);
+//! ```
 
 pub mod future {
     //! Shared async future aliases.
+    //!
+    //! ```rust
+    //! use fcommon::BoxFuture;
+    //!
+    //! fn str_len<'a>(value: &'a str) -> BoxFuture<'a, usize> {
+    //!     Box::pin(async move { value.len() })
+    //! }
+    //!
+    //! let _future = str_len("hello");
+    //! ```
 
     use std::future::Future;
     use std::pin::Pin;
@@ -11,6 +35,18 @@ pub mod future {
 
 pub mod context {
     //! Shared metadata and cross-crate identifier newtypes.
+    //!
+    //! ```rust
+    //! use fcommon::{MetadataMap, SessionId, TraceId};
+    //!
+    //! let session = SessionId::new("session-42");
+    //! let trace = TraceId::from("trace-42");
+    //! let mut metadata = MetadataMap::new();
+    //! metadata.insert("env".to_string(), "test".to_string());
+    //!
+    //! assert_eq!(session.to_string(), "session-42");
+    //! assert_eq!(trace.as_str(), "trace-42");
+    //! ```
 
     use std::collections::HashMap;
     use std::fmt::{Display, Formatter};
@@ -82,6 +118,19 @@ pub mod context {
 
 pub mod model {
     //! Shared generation settings used by request types.
+    //!
+    //! ```rust
+    //! use fcommon::GenerationOptions;
+    //!
+    //! let options = GenerationOptions::default()
+    //!     .with_temperature(0.2)
+    //!     .with_max_tokens(128)
+    //!     .enable_streaming();
+    //!
+    //! assert_eq!(options.temperature, Some(0.2));
+    //! assert_eq!(options.max_tokens, Some(128));
+    //! assert!(options.stream);
+    //! ```
 
     #[derive(Debug, Clone, Copy, PartialEq, Default)]
     pub struct GenerationOptions {
@@ -114,6 +163,16 @@ pub mod model {
 
 pub mod registry {
     //! Generic registry map wrapper used by runtime registries.
+    //!
+    //! ```rust
+    //! use fcommon::Registry;
+    //!
+    //! let mut registry = Registry::new();
+    //! registry.insert("alpha".to_string(), 1_u32);
+    //!
+    //! assert_eq!(registry.get("alpha"), Some(&1));
+    //! assert!(registry.contains_key("alpha"));
+    //! ```
 
     use std::borrow::Borrow;
     use std::collections::HashMap;
