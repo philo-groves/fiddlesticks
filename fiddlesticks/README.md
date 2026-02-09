@@ -68,6 +68,51 @@ fn _wire(provider: Arc<dyn ModelProvider>, tool_runtime: Arc<dyn ToolRuntime>) -
 }
 ```
 
+## Observability integration
+
+`fiddlesticks` exposes the runtime hook traits (`ProviderOperationHooks`, `ToolRuntimeHooks`, and `HarnessRuntimeHooks`) via its facade API. For ready-made tracing/metrics implementations, add `fobserve` alongside `fiddlesticks`.
+
+```toml
+[dependencies]
+fiddlesticks = { path = "../fiddlesticks" }
+fobserve = { path = "../fobserve" }
+```
+
+```rust
+use std::sync::Arc;
+
+use fiddlesticks::prelude::*;
+use fobserve::{
+    MetricsObservabilityHooks, SafeHarnessHooks, SafeProviderHooks, SafeToolHooks,
+    TracingObservabilityHooks,
+};
+
+fn _with_observability(
+    provider: Arc<dyn ModelProvider>,
+    tool_registry: Arc<ToolRegistry>,
+    memory: Arc<dyn MemoryBackend>,
+) -> Result<(), HarnessError> {
+    let provider_hooks = Arc::new(SafeProviderHooks::new(TracingObservabilityHooks));
+    let tool_hooks = Arc::new(SafeToolHooks::new(MetricsObservabilityHooks));
+    let harness_hooks = Arc::new(SafeHarnessHooks::new(TracingObservabilityHooks));
+
+    let tool_runtime = DefaultToolRuntime::new(tool_registry).with_hooks(tool_hooks);
+
+    let chat = ChatService::builder(Arc::clone(&provider))
+        .provider_operation_hooks(provider_hooks)
+        .tool_runtime(Arc::new(tool_runtime))
+        .build();
+
+    let harness = Harness::builder(memory)
+        .provider(provider)
+        .hooks(harness_hooks)
+        .build()?;
+
+    let _ = (chat, harness);
+    Ok(())
+}
+```
+
 ## Utility helpers and macros
 
 ```rust
