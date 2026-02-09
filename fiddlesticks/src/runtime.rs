@@ -92,12 +92,12 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        DefaultToolRuntime, Message, ModelProvider, ModelRequest,
-        ModelResponse, OutputItem, ProviderError, ProviderFuture, ProviderId, Role, StopReason,
-        StreamEvent, TokenUsage, ToolRuntime, VecEventStream,
+        DefaultToolRuntime, Message, ModelProvider, ModelRequest, ModelResponse, OutputItem,
+        ProviderError, ProviderFuture, ProviderId, Role, StopReason, StreamEvent, TokenUsage,
+        ToolRuntime, VecEventStream,
     };
 
-    use super::{build_runtime_with_tooling};
+    use super::build_runtime_with_tooling;
 
     #[derive(Debug)]
     struct FakeProvider;
