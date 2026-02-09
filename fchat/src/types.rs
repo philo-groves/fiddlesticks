@@ -1,4 +1,19 @@
 //! Chat session, turn, and chat event types.
+//!
+//! ```rust
+//! use fchat::{ChatSession, ChatTurnRequest};
+//! use fprovider::ProviderId;
+//!
+//! let session = ChatSession::new("s1", ProviderId::OpenAi, "gpt-4o-mini");
+//! let request = ChatTurnRequest::builder(session, "hello")
+//!     .temperature(0.4)
+//!     .max_tokens(128)
+//!     .enable_streaming()
+//!     .build();
+//!
+//! assert!(request.options.stream);
+//! assert_eq!(request.options.temperature, Some(0.4));
+//! ```
 
 use std::pin::Pin;
 

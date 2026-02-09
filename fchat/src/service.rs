@@ -1,4 +1,23 @@
 //! Chat service slices for non-streaming and streaming turn orchestration.
+//!
+//! ```rust
+//! use fchat::ChatPolicy;
+//! use std::time::Duration;
+//!
+//! let policy = ChatPolicy {
+//!     max_tool_round_trips: 2,
+//!     default_temperature: Some(0.2),
+//!     default_max_tokens: Some(256),
+//!     provider_retry_policy: fprovider::RetryPolicy {
+//!         max_attempts: 2,
+//!         initial_backoff: Duration::from_millis(10),
+//!         max_backoff: Duration::from_millis(20),
+//!         backoff_multiplier: 2.0,
+//!     },
+//! };
+//!
+//! assert_eq!(policy.max_tool_round_trips, 2);
+//! ```
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

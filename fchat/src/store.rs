@@ -1,4 +1,11 @@
 //! Conversation storage contracts and a basic in-memory implementation.
+//!
+//! ```rust
+//! use fchat::{ConversationStore, InMemoryConversationStore};
+//!
+//! let store: Box<dyn ConversationStore> = Box::new(InMemoryConversationStore::new());
+//! let _ = store;
+//! ```
 
 use std::collections::HashMap;
 use std::sync::Mutex;

@@ -1,4 +1,13 @@
 //! Chat-layer errors and classification.
+//!
+//! ```rust
+//! use fchat::{ChatError, ChatErrorKind, ChatErrorPhase};
+//!
+//! let err = ChatError::invalid_request("user input must not be empty")
+//!     .with_phase(ChatErrorPhase::RequestValidation);
+//! assert_eq!(err.kind, ChatErrorKind::InvalidRequest);
+//! assert!(err.is_user_error());
+//! ```
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};
