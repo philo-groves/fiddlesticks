@@ -1,6 +1,6 @@
 [package]
 name = "fharness"
-version = "0.9.9"
+version = "0.9.91"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -11,11 +11,11 @@ keywords = ["ai", "agents", "harness", "workflow", "runtime"]
 categories = ["asynchronous", "development-tools"]
 
 [dependencies]
-fcommon = { path = "../fcommon", version = "0.9.9" }
-fchat = { path = "../fchat", version = "0.9.9" }
-fmemory = { path = "../fmemory", version = "0.9.9" }
-fprovider = { path = "../fprovider", version = "0.9.9" }
-ftooling = { path = "../ftooling", version = "0.9.9" }
+fcommon = { path = "../fcommon", version = "0.9.91" }
+fchat = { path = "../fchat", version = "0.9.91" }
+fmemory = { path = "../fmemory", version = "0.9.91" }
+fprovider = { path = "../fprovider", version = "0.9.91" }
+ftooling = { path = "../ftooling", version = "0.9.91" }
 futures-util = "0.3"
 
 [dev-dependencies]

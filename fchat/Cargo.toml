@@ -1,6 +1,6 @@
 [package]
 name = "fchat"
-version = "0.9.9"
+version = "0.9.91"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -12,12 +12,12 @@ categories = ["asynchronous", "development-tools"]
 
 [dependencies]
 async-stream = "0.3"
-fcommon = { path = "../fcommon", version = "0.9.9" }
+fcommon = { path = "../fcommon", version = "0.9.91" }
 futures-core = "0.3"
 futures-timer = "3"
 futures-util = "0.3"
-ftooling = { path = "../ftooling", version = "0.9.9" }
-fprovider = { path = "../fprovider", version = "0.9.9" }
+ftooling = { path = "../ftooling", version = "0.9.91" }
+fprovider = { path = "../fprovider", version = "0.9.91" }
 
 [dev-dependencies]
 tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }
