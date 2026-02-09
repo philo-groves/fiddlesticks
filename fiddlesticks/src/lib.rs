@@ -25,8 +25,9 @@ pub use fharness::{
     RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
 };
 pub use fmemory::{
-    BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryBackend, MemoryConversationStore,
-    MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+    BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
+    InitShellScript, InitStep, MemoryBackend, MemoryConversationStore, MemoryError,
+    MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
 };
 pub use fprovider::{
     BoxedEventStream, BrowserLoginSession, CredentialKind, Message, ModelEventStream,
@@ -76,9 +77,9 @@ pub mod harness {
 
 pub mod memory {
     pub use crate::{
-        BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryBackend,
-        MemoryConversationStore, MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint,
-        RunStatus, SessionManifest,
+        BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
+        InitShellScript, InitStep, MemoryBackend, MemoryConversationStore, MemoryError,
+        MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
     };
 }
 
