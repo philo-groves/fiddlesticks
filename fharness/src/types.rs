@@ -1,6 +1,6 @@
 use fchat::ChatSession;
 use fcommon::SessionId;
-use fmemory::FeatureRecord;
+use fmemory::{FeatureRecord, InitPlan};
 
 use crate::HarnessError;
 
@@ -10,7 +10,7 @@ pub struct InitializerRequest {
     pub run_id: String,
     pub active_branch: String,
     pub current_objective: String,
-    pub init_script: Option<String>,
+    pub init_plan: Option<InitPlan>,
     pub feature_list: Vec<FeatureRecord>,
     pub progress_summary: String,
 }
@@ -26,7 +26,7 @@ impl InitializerRequest {
             run_id: run_id.into(),
             active_branch: "feature/initializer".to_string(),
             current_objective: current_objective.into(),
-            init_script: None,
+            init_plan: None,
             feature_list: Vec::new(),
             progress_summary: "Initializer scaffold created".to_string(),
         }
@@ -37,8 +37,8 @@ impl InitializerRequest {
         self
     }
 
-    pub fn with_init_script(mut self, init_script: impl Into<String>) -> Self {
-        self.init_script = Some(init_script.into());
+    pub fn with_init_plan(mut self, init_plan: InitPlan) -> Self {
+        self.init_plan = Some(init_plan);
         self
     }
 
@@ -120,7 +120,7 @@ pub struct RuntimeRunRequest {
     pub current_objective: String,
     pub stream: bool,
     pub prompt_override: Option<String>,
-    pub init_script: Option<String>,
+    pub init_plan: Option<InitPlan>,
     pub feature_list: Vec<FeatureRecord>,
     pub active_branch: String,
     pub progress_summary: Option<String>,
@@ -138,7 +138,7 @@ impl RuntimeRunRequest {
             current_objective: current_objective.into(),
             stream: false,
             prompt_override: None,
-            init_script: None,
+            init_plan: None,
             feature_list: Vec::new(),
             active_branch: "feature/initializer".to_string(),
             progress_summary: None,
@@ -155,8 +155,8 @@ impl RuntimeRunRequest {
         self
     }
 
-    pub fn with_init_script(mut self, init_script: impl Into<String>) -> Self {
-        self.init_script = Some(init_script.into());
+    pub fn with_init_plan(mut self, init_plan: InitPlan) -> Self {
+        self.init_plan = Some(init_plan);
         self
     }
 

@@ -28,7 +28,7 @@ mod tests {
 
     use fchat::{ChatPolicy, ChatService, ChatSession, ChatTurnResult, InMemoryConversationStore};
     use fcommon::{BoxFuture, SessionId};
-    use fmemory::{FeatureRecord, InMemoryMemoryBackend, MemoryBackend, SessionManifest};
+    use fmemory::{FeatureRecord, InitPlan, InitStep, InMemoryMemoryBackend, MemoryBackend, SessionManifest};
     use fprovider::{
         Message, ModelProvider, ModelRequest, ModelResponse, OutputItem, ProviderFuture,
         ProviderId, StopReason, StreamEvent, TokenUsage, ToolCall, VecEventStream,
@@ -260,7 +260,7 @@ mod tests {
         fn run<'a>(
             &'a self,
             _session_id: &'a SessionId,
-            _init_script: &'a str,
+            _init_plan: &'a InitPlan,
         ) -> BoxFuture<'a, Result<(), HarnessError>> {
             Box::pin(async move {
                 *self.calls.lock().expect("calls lock") += 1;
@@ -426,7 +426,7 @@ mod tests {
         let harness = Harness::new(memory.clone());
 
         let request = InitializerRequest::new("session-1", "run-1", "Build initializer flow")
-            .with_init_script("#!/usr/bin/env bash\necho start")
+            .with_init_plan(InitPlan::new(vec![InitStep::command("git", ["status"])]))
             .with_feature_list(vec![FeatureRecord {
                 id: "feature-1".to_string(),
                 category: "functional".to_string(),
@@ -451,7 +451,7 @@ mod tests {
             .await
             .expect("bootstrap should load");
         let manifest = state.manifest.expect("manifest should exist");
-        assert!(manifest.init_script.is_some());
+        assert!(manifest.init_plan.is_some());
     }
 
     #[tokio::test]
@@ -809,7 +809,7 @@ mod tests {
             .run(
                 RuntimeRunRequest::new(session, "run-init-fields", "objective")
                     .with_active_branch("feature/custom")
-                    .with_init_script("#!/usr/bin/env bash\necho init")
+                    .with_init_plan(InitPlan::new(vec![InitStep::command("git", ["log", "-1"])]))
                     .with_progress_summary("custom summary")
                     .with_feature_list(vec![FeatureRecord {
                         id: "feature-custom".to_string(),
@@ -831,8 +831,8 @@ mod tests {
         let manifest = state.manifest.expect("manifest should exist");
         assert_eq!(manifest.active_branch, "feature/custom");
         assert_eq!(
-            manifest.init_script.as_deref(),
-            Some("#!/usr/bin/env bash\necho init")
+            manifest.init_plan,
+            Some(InitPlan::new(vec![InitStep::command("git", ["log", "-1"])]))
         );
         assert!(
             state

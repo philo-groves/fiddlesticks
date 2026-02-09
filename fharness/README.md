@@ -76,7 +76,7 @@ let _result = harness.run_initializer(request).await?;
 
 1. **Get bearings**
    - loads manifest/progress/features from `fmemory`
-   - runs health check using manifest `init_script`
+   - runs health check using manifest `init_plan`
 2. Picks one highest-priority failing feature (`passes == false`)
 3. Delegates execution to `fchat` (`run_turn` or `stream_turn`)
 4. Validates outcome via `OutcomeValidator`

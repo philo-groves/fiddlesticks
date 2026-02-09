@@ -7,9 +7,9 @@ mod types;
 
 pub mod prelude {
     pub use crate::{
-        BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryBackend,
-        MemoryConversationStore, MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint,
-        RunStatus, SessionManifest,
+        BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
+        InitShellScript, InitStep, MemoryBackend, MemoryConversationStore, MemoryError,
+        MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
     };
 }
 
@@ -17,7 +17,8 @@ pub use adapter::MemoryConversationStore;
 pub use backend::{InMemoryMemoryBackend, MemoryBackend};
 pub use error::{MemoryError, MemoryErrorKind};
 pub use types::{
-    BootstrapState, FeatureRecord, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+    BootstrapState, FeatureRecord, InitCommand, InitPlan, InitShell, InitShellScript, InitStep,
+    ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
 };
 
 #[cfg(test)]

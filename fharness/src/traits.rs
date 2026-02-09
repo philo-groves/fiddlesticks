@@ -1,6 +1,6 @@
 use fchat::ChatTurnResult;
 use fcommon::{BoxFuture, SessionId};
-use fmemory::FeatureRecord;
+use fmemory::{FeatureRecord, InitPlan};
 
 use crate::HarnessError;
 
@@ -8,7 +8,7 @@ pub trait HealthChecker: Send + Sync {
     fn run<'a>(
         &'a self,
         session_id: &'a SessionId,
-        init_script: &'a str,
+        init_plan: &'a InitPlan,
     ) -> BoxFuture<'a, Result<(), HarnessError>>;
 }
 
@@ -19,7 +19,7 @@ impl HealthChecker for NoopHealthChecker {
     fn run<'a>(
         &'a self,
         _session_id: &'a SessionId,
-        _init_script: &'a str,
+        _init_plan: &'a InitPlan,
     ) -> BoxFuture<'a, Result<(), HarnessError>> {
         Box::pin(async { Ok(()) })
     }

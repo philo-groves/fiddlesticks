@@ -5,8 +5,8 @@ use std::time::SystemTime;
 use fchat::{ChatEvent, ChatPolicy, ChatService, ChatTurnRequest, ChatTurnResult};
 use fcommon::SessionId;
 use fmemory::{
-    FeatureRecord, MemoryBackend, MemoryConversationStore, ProgressEntry, RunCheckpoint, RunStatus,
-    SessionManifest,
+    FeatureRecord, InitPlan, InitStep, MemoryBackend, MemoryConversationStore, ProgressEntry,
+    RunCheckpoint, RunStatus, SessionManifest,
 };
 use fprovider::ModelProvider;
 use ftooling::ToolRuntime;
@@ -137,8 +137,12 @@ pub struct Harness {
 }
 
 impl Harness {
-    pub const DEFAULT_INIT_SCRIPT: &'static str =
-        "#!/usr/bin/env bash\nset -e\npwd\ngit log --oneline -20\n";
+    pub fn default_init_plan() -> InitPlan {
+        InitPlan::new(vec![
+            InitStep::command("git", ["status", "--short", "--branch"]),
+            InitStep::command("git", ["log", "--oneline", "-20"]),
+        ])
+    }
 
     pub fn new(memory: Arc<dyn MemoryBackend>) -> Self {
         Self {
@@ -220,8 +224,8 @@ impl Harness {
                 )
                 .with_active_branch(request.active_branch);
 
-                if let Some(init_script) = request.init_script {
-                    initializer = initializer.with_init_script(init_script);
+                if let Some(init_plan) = request.init_plan {
+                    initializer = initializer.with_init_plan(init_plan);
                 }
 
                 if !request.feature_list.is_empty() {
@@ -262,7 +266,7 @@ impl Harness {
             run_id,
             active_branch,
             current_objective,
-            init_script,
+            init_plan,
             feature_list,
             progress_summary,
         } = request;
@@ -286,13 +290,13 @@ impl Harness {
             progress_summary
         };
 
-        let init_script = init_script.unwrap_or_else(|| Self::DEFAULT_INIT_SCRIPT.to_string());
+        let init_plan = init_plan.unwrap_or_else(Self::default_init_plan);
 
         let mut manifest =
             SessionManifest::new(session_id.clone(), active_branch, current_objective)
                 .with_schema_version(self.schema_version)
                 .with_harness_version(self.harness_version.clone());
-        manifest.init_script = Some(init_script);
+        manifest.init_plan = Some(init_plan);
 
         let created = self
             .memory
@@ -404,7 +408,7 @@ impl Harness {
                 "functional",
                 format!("Initializer artifacts exist for objective: {objective}"),
                 [
-                    "Create init script metadata",
+                    "Create init plan metadata",
                     "Create session manifest",
                     "Create starter feature list",
                 ],
@@ -476,13 +480,13 @@ impl Harness {
             HarnessError::not_ready("session is not initialized; run initializer first")
         })?;
 
-        let init_script = manifest
-            .init_script
-            .as_deref()
-            .unwrap_or(Self::DEFAULT_INIT_SCRIPT);
+        let init_plan = manifest
+            .init_plan
+            .clone()
+            .unwrap_or_else(Self::default_init_plan);
         if let Err(error) = self
             .health_checker
-            .run(&request.session.id, init_script)
+            .run(&request.session.id, &init_plan)
             .await
         {
             if self.run_policy.fail_fast.on_health_check_error {
