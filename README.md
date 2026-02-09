@@ -205,7 +205,7 @@ cargo test --workspace --all-features
 
 - Minimum Supported Rust Version (MSRV): `1.93.0`.
 - `fiddlesticks` is the semver-stable API layer for the workspace; downstream apps should prefer its namespaces and helpers over direct internal crate imports.
-- Breaking API changes to `fiddlesticks` only ship in major version releases and are called out in `CHANGELOG.md`.
+- Breaking API changes to `fiddlesticks` only ship in major version releases and are documented in release notes.
 - MSRV bumps for `fiddlesticks` are treated as compatibility-impacting changes and only happen in major releases, with migration notes when needed.
 
 ## Release Process

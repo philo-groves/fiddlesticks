@@ -7,7 +7,7 @@ It currently supports:
 - initializer flow
 - task agent incremental loop
 - runtime wiring + run-level policy
-- reliability + guardrails (MVP hardening)
+- reliability + guardrails for production usage
 
 `fharness` composes lower layers (`fmemory`, `fchat`, `ftooling`, `fprovider`) into a structured multi-run harness.
 
