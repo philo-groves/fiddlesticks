@@ -13,7 +13,6 @@ provider-openai = ["fprovider/provider-openai"]
 provider-opencode-zen = ["fprovider/provider-opencode-zen"]
 provider-anthropic = ["fprovider/provider-anthropic"]
 provider-claude = ["fprovider/provider-claude"]
-unstable-reexports = []
 
 [dependencies]
 fchat = { path = "../fchat" }
