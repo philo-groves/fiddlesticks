@@ -90,15 +90,14 @@ pub fn build_runtime_with(
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
     use crate::{
-        ChatSession, ChatTurnRequest, DefaultToolRuntime, Message, ModelProvider, ModelRequest,
+        DefaultToolRuntime, Message, ModelProvider, ModelRequest,
         ModelResponse, OutputItem, ProviderError, ProviderFuture, ProviderId, Role, StopReason,
         StreamEvent, TokenUsage, ToolRuntime, VecEventStream,
     };
 
-    use super::{build_runtime, build_runtime_with_tooling};
+    use super::{build_runtime_with_tooling};
 
     #[derive(Debug)]
     struct FakeProvider;
