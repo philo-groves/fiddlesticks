@@ -10,7 +10,7 @@
 //! accepts_tool_hooks(&hooks);
 //! ```
 
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::time::Duration;
 
 use fharness::{HarnessError, HarnessPhase, HarnessRuntimeHooks};

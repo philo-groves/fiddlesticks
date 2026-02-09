@@ -181,7 +181,11 @@ async fn bounded_batch_mode_processes_up_to_feature_limit() {
     harness
         .run_initializer(
             InitializerRequest::new("integration-bounded", "run-init", "implement features")
-                .with_feature_list(vec![feature("feature-a"), feature("feature-b"), feature("feature-c")]),
+                .with_feature_list(vec![
+                    feature("feature-a"),
+                    feature("feature-b"),
+                    feature("feature-c"),
+                ]),
         )
         .await
         .expect("initializer should succeed");
@@ -203,9 +207,24 @@ async fn bounded_batch_mode_processes_up_to_feature_limit() {
         .await
         .expect("bootstrap state should load");
 
-    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-a" && f.passes));
-    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-b" && f.passes));
-    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-c" && !f.passes));
+    assert!(
+        bootstrap
+            .feature_list
+            .iter()
+            .any(|f| f.id == "feature-a" && f.passes)
+    );
+    assert!(
+        bootstrap
+            .feature_list
+            .iter()
+            .any(|f| f.id == "feature-b" && f.passes)
+    );
+    assert!(
+        bootstrap
+            .feature_list
+            .iter()
+            .any(|f| f.id == "feature-c" && !f.passes)
+    );
 }
 
 #[tokio::test]
@@ -220,7 +239,11 @@ async fn unlimited_batch_mode_processes_all_pending_features() {
     harness
         .run_initializer(
             InitializerRequest::new("integration-unlimited", "run-init", "implement features")
-                .with_feature_list(vec![feature("feature-a"), feature("feature-b"), feature("feature-c")]),
+                .with_feature_list(vec![
+                    feature("feature-a"),
+                    feature("feature-b"),
+                    feature("feature-c"),
+                ]),
         )
         .await
         .expect("initializer should succeed");

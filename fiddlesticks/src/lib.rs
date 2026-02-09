@@ -35,8 +35,8 @@ pub use fharness::{
     AcceptAllValidator, ChatEventObserver, FailFastPolicy, FeatureSelector,
     FirstPendingFeatureSelector, Harness, HarnessBuilder, HarnessError, HarnessErrorKind,
     HarnessPhase, HealthChecker, InitializerRequest, InitializerResult, NoopHealthChecker,
-    OutcomeValidator, RunPolicy, RunPolicyMode, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
-    TaskIterationResult,
+    OutcomeValidator, RunPolicy, RunPolicyMode, RuntimeRunOutcome, RuntimeRunRequest,
+    TaskIterationRequest, TaskIterationResult,
 };
 pub use fmemory::{
     BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
@@ -86,8 +86,8 @@ pub mod harness {
         AcceptAllValidator, ChatEventObserver, FailFastPolicy, FeatureSelector,
         FirstPendingFeatureSelector, Harness, HarnessBuilder, HarnessError, HarnessErrorKind,
         HarnessPhase, HealthChecker, InitializerRequest, InitializerResult, NoopHealthChecker,
-        OutcomeValidator, RunPolicy, RunPolicyMode, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
-        TaskIterationResult,
+        OutcomeValidator, RunPolicy, RunPolicyMode, RuntimeRunOutcome, RuntimeRunRequest,
+        TaskIterationRequest, TaskIterationResult,
     };
 }
 

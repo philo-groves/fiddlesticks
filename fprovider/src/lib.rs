@@ -322,11 +322,7 @@ mod tests {
         let manager = SecureCredentialManager::new();
 
         manager
-            .set_api_key_with_ttl(
-                ProviderId::OpenAi,
-                "sk-test-ttl",
-                Duration::from_millis(10),
-            )
+            .set_api_key_with_ttl(ProviderId::OpenAi, "sk-test-ttl", Duration::from_millis(10))
             .expect("api key with ttl should be stored");
 
         let metadata = manager
@@ -366,7 +362,10 @@ mod tests {
 
         impl CredentialAccessObserver for Recorder {
             fn on_event(&self, event: CredentialAccessEvent) {
-                self.events.lock().expect("observer lock poisoned").push(event);
+                self.events
+                    .lock()
+                    .expect("observer lock poisoned")
+                    .push(event);
             }
         }
 
@@ -384,16 +383,22 @@ mod tests {
             .expect("revoke should work");
 
         let events = recorder.events.lock().expect("observer lock poisoned");
-        assert!(events.iter().any(
-            |event| event.action == CredentialAccessAction::Set
-                && event.kind == Some(CredentialKind::ApiKey)
-        ));
-        assert!(events
-            .iter()
-            .any(|event| event.action == CredentialAccessAction::AccessGranted));
-        assert!(events
-            .iter()
-            .any(|event| event.action == CredentialAccessAction::Cleared));
+        assert!(
+            events
+                .iter()
+                .any(|event| event.action == CredentialAccessAction::Set
+                    && event.kind == Some(CredentialKind::ApiKey))
+        );
+        assert!(
+            events
+                .iter()
+                .any(|event| event.action == CredentialAccessAction::AccessGranted)
+        );
+        assert!(
+            events
+                .iter()
+                .any(|event| event.action == CredentialAccessAction::Cleared)
+        );
         for event in events.iter() {
             assert!(!format!("{event:?}").contains("sk-ant-observer"));
         }

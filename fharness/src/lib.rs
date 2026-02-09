@@ -31,8 +31,7 @@ pub use traits::{
     NoopHealthChecker, OutcomeValidator,
 };
 pub use types::{
-    FailFastPolicy, HarnessPhase, InitializerRequest, InitializerResult, RunPolicy,
-    RunPolicyMode,
+    FailFastPolicy, HarnessPhase, InitializerRequest, InitializerResult, RunPolicy, RunPolicyMode,
     RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
 };
 
