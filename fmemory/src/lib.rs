@@ -2,6 +2,7 @@
 
 mod adapter;
 mod backend;
+mod backends;
 mod error;
 mod types;
 
