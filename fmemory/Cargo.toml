@@ -1,6 +1,6 @@
 [package]
 name = "fmemory"
-version = "0.9.91"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -11,9 +11,9 @@ keywords = ["ai", "memory", "transcript", "persistence", "state"]
 categories = ["asynchronous", "database"]
 
 [dependencies]
-fchat = { path = "../fchat", version = "0.9.91" }
-fcommon = { path = "../fcommon", version = "0.9.91" }
-fprovider = { path = "../fprovider", version = "0.9.91" }
+fchat = { path = "../fchat", version = "1.0.0" }
+fcommon = { path = "../fcommon", version = "1.0.0" }
+fprovider = { path = "../fprovider", version = "1.0.0" }
 rusqlite = { version = "0.33.0", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

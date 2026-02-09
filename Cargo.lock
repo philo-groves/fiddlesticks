@@ -222,7 +222,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "fchat"
-version = "0.9.91"
+version = "1.0.0"
 dependencies = [
  "async-stream",
  "fcommon",
@@ -236,11 +236,11 @@ dependencies = [
 
 [[package]]
 name = "fcommon"
-version = "0.9.91"
+version = "1.0.0"
 
 [[package]]
 name = "fharness"
-version = "0.9.91"
+version = "1.0.0"
 dependencies = [
  "fchat",
  "fcommon",
@@ -253,7 +253,7 @@ dependencies = [
 
 [[package]]
 name = "fiddlesticks"
-version = "0.9.91"
+version = "1.0.0"
 dependencies = [
  "fchat",
  "fcommon",
@@ -273,7 +273,7 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "fmemory"
-version = "0.9.91"
+version = "1.0.0"
 dependencies = [
  "fchat",
  "fcommon",
@@ -293,7 +293,7 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "fobserve"
-version = "0.9.91"
+version = "1.0.0"
 dependencies = [
  "fcommon",
  "fharness",
@@ -335,7 +335,7 @@ dependencies = [
 
 [[package]]
 name = "fprovider"
-version = "0.9.91"
+version = "1.0.0"
 dependencies = [
  "async-stream",
  "fcommon",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "ftooling"
-version = "0.9.91"
+version = "1.0.0"
 dependencies = [
  "fcommon",
  "fprovider",
