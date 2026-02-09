@@ -1,6 +1,6 @@
 [package]
 name = "fiddlesticks"
-version = "0.9.0"
+version = "0.9.9"
 edition = "2024"
 authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Primary library for the fiddlesticks agent harness framework"
@@ -17,12 +17,12 @@ provider-anthropic = ["fprovider/provider-anthropic"]
 provider-claude = ["fprovider/provider-claude"]
 
 [dependencies]
-fchat = { path = "../fchat" }
-fcommon = { path = "../fcommon" }
-fharness = { path = "../fharness" }
-fmemory = { path = "../fmemory" }
-fprovider = { path = "../fprovider" }
-ftooling = { path = "../ftooling" }
+fchat = { path = "../fchat", version = "0.9.9" }
+fcommon = { path = "../fcommon", version = "0.9.9" }
+fharness = { path = "../fharness", version = "0.9.9" }
+fmemory = { path = "../fmemory", version = "0.9.9" }
+fprovider = { path = "../fprovider", version = "0.9.9" }
+ftooling = { path = "../ftooling", version = "0.9.9" }
 reqwest = { version = "0.12", default-features = true }
 
 [dev-dependencies]

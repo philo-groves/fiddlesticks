@@ -1,6 +1,6 @@
 [package]
 name = "fprovider"
-version = "0.9.0"
+version = "0.9.9"
 edition = "2024"
 authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Provider library for the fiddlesticks agent harness framework"
@@ -30,7 +30,7 @@ provider-anthropic = ["provider-openai"]
 provider-claude = ["provider-anthropic"]
 
 [dependencies]
-fcommon = { path = "../fcommon" }
+fcommon = { path = "../fcommon", version = "0.9.9" }
 futures-core = "0.3"
 futures-util = { version = "0.3", optional = true }
 async-stream = { version = "0.3", optional = true }

@@ -1,6 +1,6 @@
 [package]
 name = "fobserve"
-version = "0.9.0"
+version = "0.9.9"
 edition = "2024"
 authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Observability library for the fiddlesticks agent harness framework"
@@ -10,10 +10,10 @@ keywords = ["ai", "observability", "metrics", "tracing", "hooks"]
 categories = ["asynchronous", "development-tools::debugging"]
 
 [dependencies]
-fcommon = { path = "../fcommon" }
-fharness = { path = "../fharness" }
-fprovider = { path = "../fprovider" }
-ftooling = { path = "../ftooling" }
+fcommon = { path = "../fcommon", version = "0.9.9" }
+fharness = { path = "../fharness", version = "0.9.9" }
+fprovider = { path = "../fprovider", version = "0.9.9" }
+ftooling = { path = "../ftooling", version = "0.9.9" }
 metrics = "0.24"
 tracing = "0.1"
 
