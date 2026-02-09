@@ -217,6 +217,7 @@ dependencies = [
  "fcommon",
  "fprovider",
  "rusqlite",
+ "serde",
  "serde_json",
  "tokio",
 ]

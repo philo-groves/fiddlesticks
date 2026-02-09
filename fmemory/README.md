@@ -29,6 +29,7 @@ fmemory = { path = "../fmemory" }
 
 - `MemoryBackend`: async persistence trait
 - `SqliteMemoryBackend`: default durable backend implementation
+- `FilesystemMemoryBackend`: JSON-file durable backend implementation
 - `InMemoryMemoryBackend`: ephemeral test-oriented backend implementation
 - `MemoryBackendConfig`: backend selection configuration
 - `MemoryConversationStore`: adapter implementing `fchat::ConversationStore`
@@ -92,8 +93,11 @@ let in_memory = create_memory_backend(MemoryBackendConfig::InMemory)?;
 let sqlite_custom = create_memory_backend(MemoryBackendConfig::Sqlite {
     path: "./state/fmemory.sqlite3".into(),
 })?;
+let filesystem = create_memory_backend(MemoryBackendConfig::Filesystem {
+    root: "./state/fmemory".into(),
+})?;
 
-let _ = (sqlite_default, in_memory, sqlite_custom);
+let _ = (sqlite_default, in_memory, sqlite_custom, filesystem);
 # Ok::<(), fmemory::MemoryError>(())
 ```
 

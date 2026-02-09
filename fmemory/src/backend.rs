@@ -11,6 +11,7 @@ use crate::backends::sqlite::default_sqlite_path;
 use crate::error::MemoryError;
 use crate::types::{BootstrapState, FeatureRecord, ProgressEntry, RunCheckpoint, SessionManifest};
 
+pub use crate::backends::filesystem::FilesystemMemoryBackend;
 pub use crate::backends::sqlite::SqliteMemoryBackend;
 
 pub trait MemoryBackend: Send + Sync {
@@ -79,6 +80,7 @@ pub trait MemoryBackend: Send + Sync {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemoryBackendConfig {
     Sqlite { path: PathBuf },
+    Filesystem { root: PathBuf },
     InMemory,
 }
 
@@ -95,6 +97,9 @@ pub fn create_memory_backend(
 ) -> Result<Arc<dyn MemoryBackend>, MemoryError> {
     match config {
         MemoryBackendConfig::Sqlite { path } => Ok(Arc::new(SqliteMemoryBackend::new(path)?)),
+        MemoryBackendConfig::Filesystem { root } => {
+            Ok(Arc::new(FilesystemMemoryBackend::new(root)?))
+        }
         MemoryBackendConfig::InMemory => Ok(Arc::new(InMemoryMemoryBackend::new())),
     }
 }
