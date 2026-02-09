@@ -6,6 +6,8 @@ authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Observability library for the fiddlesticks agent harness framework"
 license = "MIT"
 repository = "https://github.com/philogroves/fiddlesticks"
+keywords = ["ai", "observability", "metrics", "tracing", "hooks"]
+categories = ["asynchronous", "development-tools::debugging"]
 
 [dependencies]
 fcommon = { path = "../fcommon" }

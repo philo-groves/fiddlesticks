@@ -6,6 +6,8 @@ authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Chat library for the fiddlesticks agent harness framework"
 license = "MIT"
 repository = "https://github.com/philogroves/fiddlesticks"
+keywords = ["ai", "chat", "llm", "orchestration", "runtime"]
+categories = ["asynchronous", "development-tools"]
 
 [dependencies]
 async-stream = "0.3"

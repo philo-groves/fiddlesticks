@@ -6,6 +6,8 @@ authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Tool library for the fiddlesticks agent harness framework"
 license = "MIT"
 repository = "https://github.com/philogroves/fiddlesticks"
+keywords = ["ai", "tools", "function-calling", "runtime", "orchestration"]
+categories = ["asynchronous", "development-tools"]
 
 [dependencies]
 fcommon = { path = "../fcommon" }

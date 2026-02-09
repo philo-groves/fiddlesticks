@@ -6,6 +6,8 @@ authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Primary library for the fiddlesticks agent harness framework"
 license = "MIT"
 repository = "https://github.com/philogroves/fiddlesticks"
+keywords = ["ai", "agents", "llm", "harness", "runtime"]
+categories = ["asynchronous", "development-tools"]
 
 [features]
 default = ["provider-openai"]
