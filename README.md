@@ -196,6 +196,11 @@ cargo check --workspace --all-features
 cargo test --workspace --all-features
 ```
 
+## Security Posture
+
+- API keys are handled in-memory during runtime operations and are not persisted by the framework by default.
+- Secure storage, rotation, and retrieval of API keys (for example via a secret manager, environment policy, or KMS-backed workflow) is the responsibility of teams using this framework.
+
 ## MSRV and Compatibility Policy
 
 - Minimum Supported Rust Version (MSRV): `1.85.0`.
