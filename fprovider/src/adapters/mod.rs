@@ -6,8 +6,5 @@ pub mod opencode_zen;
 #[cfg(feature = "provider-openai")]
 pub mod openai;
 
-#[cfg(any(feature = "provider-anthropic", feature = "provider-claude"))]
+#[cfg(feature = "provider-anthropic")]
 pub mod anthropic;
-
-#[cfg(feature = "provider-claude")]
-pub mod claude;

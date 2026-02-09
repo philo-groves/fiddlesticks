@@ -120,7 +120,7 @@ fn build_openai_provider(
     ))
 }
 
-#[cfg(any(feature = "provider-anthropic", feature = "provider-claude"))]
+#[cfg(feature = "provider-anthropic")]
 fn build_anthropic_provider(
     credentials: Arc<SecureCredentialManager>,
     api_key: String,
@@ -134,7 +134,7 @@ fn build_anthropic_provider(
     ))
 }
 
-#[cfg(not(any(feature = "provider-anthropic", feature = "provider-claude")))]
+#[cfg(not(feature = "provider-anthropic"))]
 fn build_anthropic_provider(
     _credentials: Arc<SecureCredentialManager>,
     _api_key: String,

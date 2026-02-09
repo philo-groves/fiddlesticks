@@ -27,7 +27,6 @@ provider-openai = [
     "dep:async-stream",
 ]
 provider-anthropic = ["provider-openai"]
-provider-claude = ["provider-anthropic"]
 
 [dependencies]
 fcommon = { path = "../fcommon", version = "0.9.9" }
