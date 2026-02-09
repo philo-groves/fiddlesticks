@@ -29,6 +29,7 @@ fmemory = { path = "../fmemory" }
 
 - `MemoryBackend`: async persistence trait
 - `SqliteMemoryBackend`: default durable backend implementation
+- `PostgresMemoryBackend`: durable backend using PostgreSQL
 - `FilesystemMemoryBackend`: JSON-file durable backend implementation
 - `InMemoryMemoryBackend`: ephemeral test-oriented backend implementation
 - `MemoryBackendConfig`: backend selection configuration
@@ -93,11 +94,18 @@ let in_memory = create_memory_backend(MemoryBackendConfig::InMemory)?;
 let sqlite_custom = create_memory_backend(MemoryBackendConfig::Sqlite {
     path: "./state/fmemory.sqlite3".into(),
 })?;
+let postgres = create_memory_backend(MemoryBackendConfig::Postgres {
+    host: "127.0.0.1".into(),
+    port: 5432,
+    database: "fmemory".into(),
+    username: "postgres".into(),
+    password: "postgres".into(),
+})?;
 let filesystem = create_memory_backend(MemoryBackendConfig::Filesystem {
     root: "./state/fmemory".into(),
 })?;
 
-let _ = (sqlite_default, in_memory, sqlite_custom, filesystem);
+let _ = (sqlite_default, in_memory, sqlite_custom, postgres, filesystem);
 # Ok::<(), fmemory::MemoryError>(())
 ```
 

@@ -10,16 +10,17 @@ pub mod prelude {
     pub use crate::{
         BootstrapState, FeatureRecord, FilesystemMemoryBackend, InMemoryMemoryBackend, InitCommand,
         InitPlan, InitShell, InitShellScript, InitStep, MemoryBackend, MemoryBackendConfig,
-        MemoryConversationStore, MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint,
-        RunStatus, SessionManifest, SqliteMemoryBackend, create_default_memory_backend,
-        create_memory_backend,
+        MemoryConversationStore, MemoryError, MemoryErrorKind, PostgresMemoryBackend,
+        PostgresMemoryBackendConfig, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+        SqliteMemoryBackend, create_default_memory_backend, create_memory_backend,
     };
 }
 
 pub use adapter::MemoryConversationStore;
 pub use backend::{
     FilesystemMemoryBackend, InMemoryMemoryBackend, MemoryBackend, MemoryBackendConfig,
-    SqliteMemoryBackend, create_default_memory_backend, create_memory_backend,
+    PostgresMemoryBackend, PostgresMemoryBackendConfig, SqliteMemoryBackend,
+    create_default_memory_backend, create_memory_backend,
 };
 pub use error::{MemoryError, MemoryErrorKind};
 pub use types::{
@@ -38,7 +39,7 @@ mod tests {
     use crate::types::{FeatureRecord, ProgressEntry, RunCheckpoint, SessionManifest};
     use crate::{
         FilesystemMemoryBackend, InMemoryMemoryBackend, MemoryBackend, MemoryConversationStore,
-        SqliteMemoryBackend,
+        PostgresMemoryBackend, PostgresMemoryBackendConfig, SqliteMemoryBackend,
     };
 
     fn temp_dir(prefix: &str) -> std::path::PathBuf {
@@ -373,5 +374,112 @@ mod tests {
         assert_eq!(transcript[1].role, Role::Assistant);
 
         std::fs::remove_dir_all(&root).expect("temporary directory should be removable");
+    }
+
+    #[tokio::test]
+    async fn postgres_backend_stores_bootstrap_state_and_transcript_when_configured() {
+        let host = match std::env::var("FMEMORY_TEST_POSTGRES_HOST") {
+            Ok(value) if !value.trim().is_empty() => value,
+            _ => return,
+        };
+        let database = match std::env::var("FMEMORY_TEST_POSTGRES_DATABASE") {
+            Ok(value) if !value.trim().is_empty() => value,
+            _ => return,
+        };
+        let username = match std::env::var("FMEMORY_TEST_POSTGRES_USERNAME") {
+            Ok(value) if !value.trim().is_empty() => value,
+            _ => return,
+        };
+        let password = match std::env::var("FMEMORY_TEST_POSTGRES_PASSWORD") {
+            Ok(value) => value,
+            _ => return,
+        };
+        let port = std::env::var("FMEMORY_TEST_POSTGRES_PORT")
+            .ok()
+            .and_then(|raw| raw.parse::<u16>().ok())
+            .unwrap_or(5432);
+
+        let backend = PostgresMemoryBackend::new(PostgresMemoryBackendConfig {
+            host,
+            port,
+            database,
+            username,
+            password,
+        })
+        .expect("postgres backend should initialize");
+        let session_id = SessionId::from(format!(
+            "session-postgres-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock should be after unix epoch")
+                .as_nanos()
+        ));
+
+        backend
+            .save_manifest(
+                &session_id,
+                SessionManifest::new(
+                    session_id.clone(),
+                    "feature/postgres",
+                    "Build postgres backend",
+                ),
+            )
+            .await
+            .expect("manifest should save");
+
+        backend
+            .replace_feature_list(
+                &session_id,
+                vec![FeatureRecord {
+                    id: "f-postgres-1".to_string(),
+                    category: "functional".to_string(),
+                    description: "Postgres backend persists feature rows".to_string(),
+                    steps: vec!["write feature rows".to_string()],
+                    passes: false,
+                }],
+            )
+            .await
+            .expect("feature list should save");
+
+        backend
+            .append_progress_entry(
+                &session_id,
+                ProgressEntry::new("run-postgres-1", "Postgres bootstrap created"),
+            )
+            .await
+            .expect("progress should append");
+
+        backend
+            .record_run_checkpoint(&session_id, RunCheckpoint::started("run-postgres-1"))
+            .await
+            .expect("checkpoint should save");
+
+        backend
+            .append_transcript_messages(
+                &session_id,
+                vec![
+                    Message::new(Role::User, "postgres hello"),
+                    Message::new(Role::Assistant, "postgres hi"),
+                ],
+            )
+            .await
+            .expect("transcript should append");
+
+        let bootstrap = backend
+            .load_bootstrap_state(&session_id)
+            .await
+            .expect("bootstrap should load");
+        assert!(bootstrap.manifest.is_some());
+        assert_eq!(bootstrap.feature_list.len(), 1);
+        assert_eq!(bootstrap.recent_progress.len(), 1);
+        assert_eq!(bootstrap.checkpoints.len(), 1);
+
+        let transcript = backend
+            .load_transcript_messages(&session_id)
+            .await
+            .expect("transcript should load");
+        assert_eq!(transcript.len(), 2);
+        assert_eq!(transcript[0].role, Role::User);
+        assert_eq!(transcript[1].role, Role::Assistant);
     }
 }
