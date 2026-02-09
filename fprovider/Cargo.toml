@@ -10,7 +10,7 @@ keywords = ["ai", "llm", "providers", "openai", "anthropic"]
 categories = ["asynchronous", "api-bindings"]
 
 [features]
-default = ["provider-openai"]
+default = ["provider-opencode-zen", "provider-openai", "provider-anthropic"]
 provider-opencode-zen = [
     "provider-openai",
     "dep:reqwest",
