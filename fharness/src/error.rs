@@ -1,3 +1,13 @@
+//! Harness-level error types and conversion helpers.
+//!
+//! ```rust
+//! use fharness::{HarnessError, HarnessErrorKind};
+//!
+//! let err = HarnessError::validation("outcome failed checks");
+//! assert_eq!(err.kind, HarnessErrorKind::Validation);
+//! assert!(err.to_string().contains("outcome failed checks"));
+//! ```
+
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 

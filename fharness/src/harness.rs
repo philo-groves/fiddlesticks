@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
@@ -19,6 +20,22 @@ use crate::{
     RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
 };
 
+/// Runtime builder that composes provider/chat/tooling dependencies into a [`Harness`].
+///
+/// ```rust
+/// use fharness::{Harness, RunPolicy};
+/// use fmemory::{InMemoryMemoryBackend, MemoryBackend};
+/// use std::sync::Arc;
+///
+/// let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+/// let harness = Harness::new(memory)
+///     .with_run_policy(RunPolicy::strict())
+///     .expect("strict policy should be valid");
+/// let default_plan = Harness::default_init_plan();
+///
+/// assert!(!default_plan.steps.is_empty());
+/// let _ = harness;
+/// ```
 pub struct HarnessBuilder {
     memory: Arc<dyn MemoryBackend>,
     provider: Option<Arc<dyn ModelProvider>>,

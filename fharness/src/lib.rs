@@ -1,4 +1,17 @@
 //! Agent harness orchestration APIs.
+//!
+//! ```rust
+//! use fharness::{Harness, InitializerRequest};
+//! use fmemory::{InMemoryMemoryBackend, MemoryBackend};
+//! use std::sync::Arc;
+//!
+//! let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+//! let harness = Harness::new(memory);
+//! let request = InitializerRequest::new("session-1", "run-1", "Bootstrap");
+//!
+//! assert_eq!(request.run_id, "run-1");
+//! let _ = harness;
+//! ```
 
 mod error;
 mod harness;

@@ -1,3 +1,21 @@
+//! Harness request/response types and run policy definitions.
+//!
+//! ```rust
+//! use fchat::ChatSession;
+//! use fharness::{RunPolicy, RunPolicyMode, RuntimeRunRequest, TaskIterationRequest};
+//! use fprovider::ProviderId;
+//!
+//! let session = ChatSession::new("session-1", ProviderId::OpenAi, "gpt-4o-mini");
+//! let task = TaskIterationRequest::new(session.clone(), "run-1").enable_streaming();
+//! let runtime = RuntimeRunRequest::new(session, "run-2", "Implement feature")
+//!     .with_prompt_override("Use tool-assisted flow");
+//! let policy = RunPolicy::bounded_batch(2);
+//!
+//! assert!(task.stream);
+//! assert_eq!(runtime.run_id, "run-2");
+//! assert_eq!(policy.mode, RunPolicyMode::BoundedBatch);
+//! ```
+
 use fchat::ChatSession;
 use fcommon::SessionId;
 use fmemory::{FeatureRecord, InitPlan};

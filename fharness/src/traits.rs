@@ -1,3 +1,30 @@
+//! Pluggable strategy traits for health checks, validation, and feature selection.
+//!
+//! ```rust
+//! use fharness::{FeatureSelector, FirstPendingFeatureSelector};
+//! use fmemory::FeatureRecord;
+//!
+//! let selector = FirstPendingFeatureSelector;
+//! let selected = selector.select(&[
+//!     FeatureRecord {
+//!         id: "a".to_string(),
+//!         category: "functional".to_string(),
+//!         description: "done".to_string(),
+//!         steps: vec!["x".to_string()],
+//!         passes: true,
+//!     },
+//!     FeatureRecord {
+//!         id: "b".to_string(),
+//!         category: "functional".to_string(),
+//!         description: "pending".to_string(),
+//!         steps: vec!["y".to_string()],
+//!         passes: false,
+//!     },
+//! ]);
+//!
+//! assert_eq!(selected.expect("pending feature").id, "b");
+//! ```
+
 use fchat::ChatTurnResult;
 use fcommon::{BoxFuture, SessionId};
 use fmemory::{FeatureRecord, InitPlan};

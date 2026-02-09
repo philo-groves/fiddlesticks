@@ -1,3 +1,14 @@
+//! Runtime hook contracts for observing harness phase execution.
+//!
+//! ```rust
+//! use fharness::{HarnessRuntimeHooks, NoopHarnessRuntimeHooks};
+//!
+//! fn accepts_hooks(_hooks: &dyn HarnessRuntimeHooks) {}
+//!
+//! let hooks = NoopHarnessRuntimeHooks;
+//! accepts_hooks(&hooks);
+//! ```
+
 use std::time::Duration;
 
 use fcommon::SessionId;
