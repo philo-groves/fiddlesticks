@@ -2,6 +2,7 @@
 name = "fcommon"
 version = "0.9.9"
 edition = "2024"
+rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Common library for the fiddlesticks agent harness framework"
 license = "MIT"
