@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a reproducible defect in framework behavior
+title: "[bug] "
+labels:
+  - bug
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report.
+
+        Please include enough detail for maintainers to reproduce and triage quickly.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the bug
+      placeholder: "Chat turn retries despite disabled retry policy"
+    validations:
+      required: true
+  - type: dropdown
+    id: affected-crates
+    attributes:
+      label: Affected crate(s)
+      description: Select all crates that appear affected
+      multiple: true
+      options:
+        - fiddlesticks
+        - fchat
+        - fcommon
+        - fharness
+        - fmemory
+        - fobserve
+        - fprovider
+        - ftooling
+        - Unknown
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Version(s)
+      description: Package version(s), git ref, and rustc version
+      placeholder: "fiddlesticks 0.9.9, main@abc123, rustc 1.93.0"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture, runtime setup, feature flags
+      placeholder: "Ubuntu 24.04, x86_64, cargo test --workspace --all-features"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List exact steps and inputs required
+      placeholder: |
+        1. Build runtime with ...
+        2. Send turn request ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output / screenshots
+      description: Paste minimal relevant output
+      render: shell
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Workarounds, suspected root cause, related issues

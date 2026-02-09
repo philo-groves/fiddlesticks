@@ -1,0 +1,95 @@
+name: Security report
+description: Report a potential security vulnerability for triage and tracking
+title: "[security] "
+labels:
+  - security
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report potential vulnerabilities.
+
+        Do not include secrets, private keys, tokens, credentials, or private infrastructure details.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line vulnerability description
+      placeholder: "Credential metadata can be inferred through error path"
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Suspected severity
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+        - Unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: affected-crates
+    attributes:
+      label: Affected crate(s)
+      multiple: true
+      options:
+        - fiddlesticks
+        - fchat
+        - fcommon
+        - fharness
+        - fmemory
+        - fobserve
+        - fprovider
+        - ftooling
+        - Unknown
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Affected version(s)
+      description: Include package versions and/or commit refs
+      placeholder: "fprovider 0.9.9, main@abc123"
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Describe confidentiality, integrity, and availability impact
+      placeholder: "Attacker can ... leading to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: attack-scenario
+    attributes:
+      label: Attack scenario
+      description: Preconditions and realistic exploitation path
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps or PoC
+      description: Provide minimal steps, payloads, and expected/actual outcomes
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested mitigation (optional)
+      description: If known, propose remediation direction
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Reporter checklist
+      options:
+        - label: I searched existing issues for `label:security` before filing.
+          required: true
+        - label: I have redacted sensitive data from this report.
+          required: true

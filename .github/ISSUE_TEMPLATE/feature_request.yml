@@ -1,0 +1,73 @@
+name: Feature request
+description: Propose an enhancement or new capability
+title: "[feature] "
+labels:
+  - enhancement
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea.
+
+        Please focus on problem statement and user impact before solution details.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the feature request
+      placeholder: "Add typed metadata helper API on ChatTurnRequestBuilder"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What problem are you trying to solve?
+      placeholder: "Today we need to ... which makes ... difficult"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or API you would like to see
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing workarounds or other approaches
+  - type: dropdown
+    id: affected-layer
+    attributes:
+      label: Affected layer
+      multiple: true
+      options:
+        - Public facade API (fiddlesticks)
+        - Provider abstraction (fprovider)
+        - Chat orchestration (fchat)
+        - Tool runtime (ftooling)
+        - Memory/persistence (fmemory)
+        - Harness flow (fharness)
+        - Observability (fobserve)
+        - Shared primitives (fcommon)
+        - Documentation
+        - Unknown
+    validations:
+      required: true
+  - type: checkboxes
+    id: semver
+    attributes:
+      label: Compatibility impact
+      description: Mark any relevant considerations
+      options:
+        - label: This may require a breaking change to `fiddlesticks` public API.
+        - label: This can likely be implemented as additive/non-breaking behavior.
+        - label: This impacts internal crates only.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Related issues, examples, links, adoption context
