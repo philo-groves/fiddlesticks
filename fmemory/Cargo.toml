@@ -21,4 +21,4 @@ tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
 tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }
 
 [lib]
-doctest = false
+doctest = true

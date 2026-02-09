@@ -1,4 +1,14 @@
 //! Memory backend trait and in-memory backend implementation.
+//!
+//! ```rust
+//! use fmemory::{InMemoryMemoryBackend, MemoryBackendConfig, create_memory_backend};
+//!
+//! let _in_memory = InMemoryMemoryBackend::new();
+//! let backend = create_memory_backend(MemoryBackendConfig::InMemory)
+//!     .expect("in-memory backend should initialize");
+//! assert!(matches!(MemoryBackendConfig::InMemory, MemoryBackendConfig::InMemory));
+//! let _ = backend;
+//! ```
 
 use std::collections::HashMap;
 use std::path::PathBuf;

@@ -1,4 +1,17 @@
 //! Context and harness-state persistence layer with fchat adapter support.
+//!
+//! ```rust
+//! use std::sync::Arc;
+//!
+//! use fmemory::{InMemoryMemoryBackend, MemoryConversationStore, SessionManifest};
+//!
+//! let backend = Arc::new(InMemoryMemoryBackend::new());
+//! let store = MemoryConversationStore::new(backend);
+//! let manifest = SessionManifest::new("session-1", "feature/init", "Bootstrap workspace");
+//!
+//! assert_eq!(manifest.active_branch, "feature/init");
+//! let _ = store;
+//! ```
 
 mod adapter;
 mod backend;

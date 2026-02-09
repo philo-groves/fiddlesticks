@@ -1,4 +1,12 @@
 //! Memory-layer errors for state and transcript persistence operations.
+//!
+//! ```rust
+//! use fmemory::{MemoryError, MemoryErrorKind};
+//!
+//! let err = MemoryError::not_found("session missing");
+//! assert_eq!(err.kind, MemoryErrorKind::NotFound);
+//! assert!(err.to_string().contains("session missing"));
+//! ```
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};

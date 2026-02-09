@@ -1,4 +1,15 @@
 //! Adapter that exposes fmemory as an fchat ConversationStore.
+//!
+//! ```rust
+//! use std::sync::Arc;
+//!
+//! use fchat::ConversationStore;
+//! use fmemory::{InMemoryMemoryBackend, MemoryConversationStore};
+//!
+//! let backend = Arc::new(InMemoryMemoryBackend::new());
+//! let store = MemoryConversationStore::new(backend);
+//! let _trait_object: &dyn ConversationStore = &store;
+//! ```
 
 use std::sync::Arc;
 

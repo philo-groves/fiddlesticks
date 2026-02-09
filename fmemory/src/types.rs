@@ -1,4 +1,22 @@
 //! Durable harness and conversation state records.
+//!
+//! ```rust
+//! use fmemory::{InitPlan, InitShell, InitStep, RunCheckpoint, RunStatus, SessionManifest};
+//!
+//! let plan = InitPlan::new(vec![
+//!     InitStep::command("git", ["status"]),
+//!     InitStep::shell(InitShell::Sh, "echo ready"),
+//! ]);
+//! let manifest = SessionManifest::new("session-1", "feature/init", "Initialize project")
+//!     .with_harness_version("v1")
+//!     .with_schema_version(2);
+//! let mut checkpoint = RunCheckpoint::started("run-1");
+//! checkpoint.status = RunStatus::Succeeded;
+//!
+//! assert_eq!(plan.steps.len(), 2);
+//! assert_eq!(manifest.schema_version, 2);
+//! assert_eq!(checkpoint.status, RunStatus::Succeeded);
+//! ```
 
 use std::collections::HashMap;
 use std::time::SystemTime;
