@@ -1,4 +1,22 @@
 //! Tool runtime context and execution result types.
+//!
+//! ```rust
+//! use fprovider::ToolCall;
+//! use ftooling::{ToolExecutionContext, ToolExecutionResult};
+//!
+//! let context = ToolExecutionContext::new("session-1")
+//!     .with_trace_id("trace-1")
+//!     .with_metadata("feature", "search");
+//! assert_eq!(context.metadata.get("feature"), Some(&"search".to_string()));
+//!
+//! let call = ToolCall {
+//!     id: "call_1".to_string(),
+//!     name: "echo".to_string(),
+//!     arguments: "{}".to_string(),
+//! };
+//! let result = ToolExecutionResult::from_call(&call, "done");
+//! assert_eq!(result.tool_call_id, "call_1");
+//! ```
 
 use fcommon::{MetadataMap, SessionId, TraceId};
 use fprovider::{ToolCall, ToolResult};

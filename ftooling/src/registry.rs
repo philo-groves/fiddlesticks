@@ -1,4 +1,22 @@
 //! Tool registry for lookup by tool definition name.
+//!
+//! ```rust
+//! use fprovider::ToolDefinition;
+//! use ftooling::ToolRegistry;
+//!
+//! let mut registry = ToolRegistry::new();
+//! registry.register_sync_fn(
+//!     ToolDefinition {
+//!         name: "echo".to_string(),
+//!         description: "Echoes raw arguments".to_string(),
+//!         input_schema: r#"{"type":"string"}"#.to_string(),
+//!     },
+//!     |args, _ctx| Ok(args),
+//! );
+//!
+//! assert!(registry.contains("echo"));
+//! assert_eq!(registry.definitions().len(), 1);
+//! ```
 
 use std::future::Future;
 use std::sync::Arc;

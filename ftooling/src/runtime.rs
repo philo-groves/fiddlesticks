@@ -1,4 +1,15 @@
 //! Tool runtime trait and default registry-backed executor.
+//!
+//! ```rust
+//! use std::sync::Arc;
+//! use std::time::Duration;
+//!
+//! use ftooling::{DefaultToolRuntime, ToolRegistry};
+//!
+//! let runtime = DefaultToolRuntime::new(Arc::new(ToolRegistry::new()))
+//!     .with_timeout(Duration::from_millis(250));
+//! assert_eq!(runtime.registry().len(), 0);
+//! ```
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};

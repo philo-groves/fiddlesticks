@@ -1,4 +1,20 @@
 //! Tool trait contract for registry-managed capabilities.
+//!
+//! ```rust
+//! use fprovider::ToolDefinition;
+//! use ftooling::{FunctionTool, Tool};
+//!
+//! let tool = FunctionTool::new(
+//!     ToolDefinition {
+//!         name: "echo".to_string(),
+//!         description: "Echoes input".to_string(),
+//!         input_schema: r#"{"type":"string"}"#.to_string(),
+//!     },
+//!     |args, _ctx| async move { Ok(args) },
+//! );
+//!
+//! assert_eq!(tool.definition().name, "echo");
+//! ```
 
 use std::future::Future;
 use std::sync::Arc;

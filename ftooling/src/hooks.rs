@@ -1,4 +1,13 @@
 //! Runtime hooks for tool execution lifecycle events.
+//!
+//! ```rust
+//! use ftooling::{NoopToolRuntimeHooks, ToolRuntimeHooks};
+//!
+//! fn assert_hooks_trait(_hooks: &dyn ToolRuntimeHooks) {}
+//!
+//! let hooks = NoopToolRuntimeHooks;
+//! assert_hooks_trait(&hooks);
+//! ```
 
 use std::time::Duration;
 

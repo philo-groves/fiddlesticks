@@ -1,4 +1,14 @@
 //! Tool execution errors and classifications.
+//!
+//! ```rust
+//! use ftooling::{ToolError, ToolErrorKind};
+//!
+//! let error = ToolError::timeout("tool took too long")
+//!     .with_tool_name("search")
+//!     .with_tool_call_id("call_1");
+//! assert_eq!(error.kind, ToolErrorKind::Timeout);
+//! assert!(error.is_retryable());
+//! ```
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};

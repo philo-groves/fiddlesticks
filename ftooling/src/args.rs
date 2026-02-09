@@ -1,4 +1,12 @@
 //! JSON argument parsing helpers for function and trait-based tools.
+//!
+//! ```rust
+//! use ftooling::{parse_json_object, required_string};
+//!
+//! let args = parse_json_object(r#"{"query":"rust"}"#).expect("object should parse");
+//! let query = required_string(&args, "query").expect("query should be present");
+//! assert_eq!(query, "rust");
+//! ```
 
 use serde_json::{Map, Value};
 
