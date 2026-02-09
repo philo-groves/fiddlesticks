@@ -67,7 +67,7 @@ mod tests {
         let non_streaming = turn(session.clone(), "hello");
         let streaming = streaming_turn(session, "hello");
 
-        assert!(!non_streaming.stream);
-        assert!(streaming.stream);
+        assert!(!non_streaming.options.stream);
+        assert!(streaming.options.stream);
     }
 }

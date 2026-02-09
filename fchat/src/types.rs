@@ -2,7 +2,7 @@
 
 use std::pin::Pin;
 
-use fcommon::SessionId;
+use fcommon::{GenerationOptions, SessionId};
 use fprovider::{ProviderId, StopReason, TokenUsage, ToolCall};
 use futures_core::Stream;
 
@@ -34,17 +34,10 @@ impl ChatSession {
 pub struct ChatTurnRequest {
     pub session: ChatSession,
     pub user_input: String,
-    pub temperature: Option<f32>,
-    pub max_tokens: Option<u32>,
-    pub stream: bool,
+    pub options: GenerationOptions,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct ChatTurnOptions {
-    pub temperature: Option<f32>,
-    pub max_tokens: Option<u32>,
-    pub stream: bool,
-}
+pub type ChatTurnOptions = GenerationOptions;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChatTurnRequestBuilder {
@@ -62,31 +55,27 @@ impl ChatTurnRequest {
         Self {
             session,
             user_input: user_input.into(),
-            temperature: None,
-            max_tokens: None,
-            stream: false,
+            options: ChatTurnOptions::default(),
         }
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
-        self.temperature = Some(temperature);
+        self.options.temperature = Some(temperature);
         self
     }
 
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
-        self.max_tokens = Some(max_tokens);
+        self.options.max_tokens = Some(max_tokens);
         self
     }
 
     pub fn enable_streaming(mut self) -> Self {
-        self.stream = true;
+        self.options.stream = true;
         self
     }
 
     pub fn with_options(mut self, options: ChatTurnOptions) -> Self {
-        self.temperature = options.temperature;
-        self.max_tokens = options.max_tokens;
-        self.stream = options.stream;
+        self.options = options;
         self
     }
 }

@@ -136,7 +136,7 @@ impl ChatService {
     }
 
     pub async fn run_turn(&self, request: ChatTurnRequest) -> Result<ChatTurnResult, ChatError> {
-        if request.stream {
+        if request.options.stream {
             return Err(ChatError::invalid_request(
                 "use stream_turn for streaming requests",
             ));
@@ -391,13 +391,11 @@ impl ChatService {
         let ChatTurnRequest {
             session,
             user_input,
-            temperature,
-            max_tokens,
-            stream: _,
+            options,
         } = request;
 
-        let temperature = temperature.or(self.policy.default_temperature);
-        let max_tokens = max_tokens.or(self.policy.default_max_tokens);
+        let temperature = options.temperature.or(self.policy.default_temperature);
+        let max_tokens = options.max_tokens.or(self.policy.default_max_tokens);
 
         let prior = self
             .store
@@ -967,7 +965,7 @@ mod tests {
         assert_eq!(saved[1], Message::new(Role::Assistant, "hello world"));
 
         let requests = provider.requests.lock().expect("requests lock");
-        assert!(requests[0].stream);
+        assert!(requests[0].options.stream);
     }
 
     #[tokio::test]
@@ -985,8 +983,8 @@ mod tests {
 
         let requests = provider.requests.lock().expect("requests lock");
         assert_eq!(requests.len(), 1);
-        assert_eq!(requests[0].temperature, Some(0.6));
-        assert_eq!(requests[0].max_tokens, Some(256));
+        assert_eq!(requests[0].options.temperature, Some(0.6));
+        assert_eq!(requests[0].options.max_tokens, Some(256));
     }
 
     #[tokio::test]

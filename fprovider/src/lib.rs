@@ -118,7 +118,7 @@ mod tests {
             .with_metadata("trace_id", "abc")
             .enable_streaming();
         assert!(valid.validate().is_ok());
-        assert!(valid.stream);
+        assert!(valid.options.stream);
         assert_eq!(valid.metadata.get("trace_id"), Some(&"abc".to_string()));
     }
 
@@ -141,7 +141,7 @@ mod tests {
 
         assert_eq!(request.messages.len(), 1);
         assert_eq!(request.metadata.get("trace_id"), Some(&"abc".to_string()));
-        assert!(request.stream);
+        assert!(request.options.stream);
     }
 
     #[test]

@@ -924,7 +924,7 @@ impl Harness {
         chat: &ChatService,
         turn_request: ChatTurnRequest,
     ) -> Result<ChatTurnResult, HarnessError> {
-        if turn_request.stream {
+        if turn_request.options.stream {
             let mut stream = chat.stream_turn(turn_request).await?;
             let mut final_result = None;
             while let Some(item) = stream.next().await {
@@ -1918,7 +1918,7 @@ mod tests {
         assert!(matches!(outcome, RuntimeRunOutcome::TaskIteration(_)));
 
         let request = provider.latest_request();
-        assert!(request.stream);
+        assert!(request.options.stream);
         let last_message = request.messages.last().expect("user message should exist");
         assert_eq!(last_message.role, fprovider::Role::User);
         assert_eq!(last_message.content, "explicit prompt");

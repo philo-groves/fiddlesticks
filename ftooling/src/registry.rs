@@ -1,16 +1,16 @@
 //! Tool registry for lookup by tool definition name.
 
-use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
+use fcommon::Registry;
 use fprovider::ToolDefinition;
 
 use crate::{FunctionTool, Tool, ToolError, ToolExecutionContext};
 
 #[derive(Default)]
 pub struct ToolRegistry {
-    tools: HashMap<String, Arc<dyn Tool>>,
+    tools: Registry<String, Arc<dyn Tool>>,
 }
 
 impl ToolRegistry {
@@ -45,7 +45,7 @@ impl ToolRegistry {
     }
 
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
-        self.tools.get(name).map(Arc::clone)
+        self.tools.get(name).cloned()
     }
 
     pub fn contains(&self, name: &str) -> bool {

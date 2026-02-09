@@ -1,13 +1,14 @@
 //! Provider registry for runtime provider lookup and swapping.
 
-use std::collections::HashMap;
 use std::sync::Arc;
+
+use fcommon::Registry;
 
 use crate::{ModelProvider, ProviderId};
 
 #[derive(Default)]
 pub struct ProviderRegistry {
-    providers: HashMap<ProviderId, Arc<dyn ModelProvider>>,
+    providers: Registry<ProviderId, Arc<dyn ModelProvider>>,
 }
 
 impl ProviderRegistry {
@@ -23,7 +24,7 @@ impl ProviderRegistry {
     }
 
     pub fn get(&self, provider_id: ProviderId) -> Option<Arc<dyn ModelProvider>> {
-        self.providers.get(&provider_id).map(Arc::clone)
+        self.providers.get(&provider_id).cloned()
     }
 
     pub fn remove(&mut self, provider_id: ProviderId) -> Option<Arc<dyn ModelProvider>> {

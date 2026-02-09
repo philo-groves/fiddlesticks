@@ -2,7 +2,7 @@
 
 use std::fmt::{Display, Formatter};
 
-use fcommon::MetadataMap;
+use fcommon::{GenerationOptions, MetadataMap};
 
 use crate::{ProviderError, ProviderErrorKind};
 
@@ -103,12 +103,10 @@ pub struct ModelResponse {
 pub struct ModelRequest {
     pub model: String,
     pub messages: Vec<Message>,
-    pub temperature: Option<f32>,
-    pub max_tokens: Option<u32>,
+    pub options: GenerationOptions,
     pub tools: Vec<ToolDefinition>,
     pub tool_results: Vec<ToolResult>,
     pub metadata: MetadataMap,
-    pub stream: bool,
 }
 
 impl ModelRequest {
@@ -120,12 +118,10 @@ impl ModelRequest {
         Self {
             model: model.into(),
             messages,
-            temperature: None,
-            max_tokens: None,
+            options: GenerationOptions::default(),
             tools: Vec::new(),
             tool_results: Vec::new(),
             metadata: MetadataMap::new(),
-            stream: false,
         }
     }
 
@@ -139,12 +135,12 @@ impl ModelRequest {
     }
 
     pub fn with_temperature(mut self, temperature: f32) -> Self {
-        self.temperature = Some(temperature);
+        self.options.temperature = Some(temperature);
         self
     }
 
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
-        self.max_tokens = Some(max_tokens);
+        self.options.max_tokens = Some(max_tokens);
         self
     }
 
@@ -164,7 +160,7 @@ impl ModelRequest {
     }
 
     pub fn enable_streaming(mut self) -> Self {
-        self.stream = true;
+        self.options.stream = true;
         self
     }
 
@@ -179,7 +175,7 @@ impl ModelRequest {
             ));
         }
 
-        if let Some(max_tokens) = self.max_tokens {
+        if let Some(max_tokens) = self.options.max_tokens {
             if max_tokens == 0 {
                 return Err(ProviderError::invalid_request(
                     "max_tokens must be greater than zero",
@@ -187,7 +183,7 @@ impl ModelRequest {
             }
         }
 
-        if let Some(temperature) = self.temperature {
+        if let Some(temperature) = self.options.temperature {
             if !(0.0..=2.0).contains(&temperature) {
                 return Err(ProviderError::new(
                     ProviderErrorKind::InvalidRequest,
@@ -205,12 +201,10 @@ impl ModelRequest {
 pub struct ModelRequestBuilder {
     model: String,
     messages: Vec<Message>,
-    temperature: Option<f32>,
-    max_tokens: Option<u32>,
+    options: GenerationOptions,
     tools: Vec<ToolDefinition>,
     tool_results: Vec<ToolResult>,
     metadata: MetadataMap,
-    stream: bool,
 }
 
 impl ModelRequestBuilder {
@@ -218,12 +212,10 @@ impl ModelRequestBuilder {
         Self {
             model: model.into(),
             messages: Vec::new(),
-            temperature: None,
-            max_tokens: None,
+            options: GenerationOptions::default(),
             tools: Vec::new(),
             tool_results: Vec::new(),
             metadata: MetadataMap::new(),
-            stream: false,
         }
     }
 
@@ -238,12 +230,12 @@ impl ModelRequestBuilder {
     }
 
     pub fn temperature(mut self, temperature: f32) -> Self {
-        self.temperature = Some(temperature);
+        self.options.temperature = Some(temperature);
         self
     }
 
     pub fn max_tokens(mut self, max_tokens: u32) -> Self {
-        self.max_tokens = Some(max_tokens);
+        self.options.max_tokens = Some(max_tokens);
         self
     }
 
@@ -263,7 +255,7 @@ impl ModelRequestBuilder {
     }
 
     pub fn streaming(mut self, stream: bool) -> Self {
-        self.stream = stream;
+        self.options.stream = stream;
         self
     }
 
@@ -275,12 +267,10 @@ impl ModelRequestBuilder {
         let request = ModelRequest {
             model: self.model,
             messages: self.messages,
-            temperature: self.temperature,
-            max_tokens: self.max_tokens,
+            options: self.options,
             tools: self.tools,
             tool_results: self.tool_results,
             metadata: self.metadata,
-            stream: self.stream,
         };
 
         request.validate()?;

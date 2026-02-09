@@ -72,8 +72,8 @@ impl AnthropicProvider {
             model,
             messages,
             tools,
-            temperature: request.temperature,
-            max_tokens: request.max_tokens,
+            temperature: request.options.temperature,
+            max_tokens: request.options.max_tokens,
             stream,
         }
     }

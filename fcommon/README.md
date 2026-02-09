@@ -11,6 +11,8 @@ and async signatures without taking on heavy dependencies.
 - `TraceId`: strongly-typed trace identifier
 - `MetadataMap`: `HashMap<String, String>` for portable metadata
 - `BoxFuture<'a, T>`: standard boxed async future alias
+- `GenerationOptions`: shared generation controls (`temperature`, `max_tokens`, `stream`)
+- `Registry<K, V>`: small generic map-backed registry helper
 
 ## Add dependency
 
@@ -44,6 +46,19 @@ use fcommon::BoxFuture;
 fn compute<'a>(value: &'a str) -> BoxFuture<'a, usize> {
     Box::pin(async move { value.len() })
 }
+```
+
+### Shared generation options
+
+```rust
+use fcommon::GenerationOptions;
+
+let options = GenerationOptions::default()
+    .with_temperature(0.2)
+    .with_max_tokens(256)
+    .enable_streaming();
+
+assert!(options.stream);
 ```
 
 ## Design notes
