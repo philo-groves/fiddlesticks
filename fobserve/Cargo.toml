@@ -1,0 +1,16 @@
+[package]
+name = "fobserve"
+version = "0.9.0"
+edition = "2024"
+authors = ["Philo Groves <philogroves@gmail.com>"]
+description = "Observability library for the fiddlesticks agent harness framework"
+license = "MIT"
+repository = "https://github.com/philogroves/fiddlesticks"
+
+[dependencies]
+fcommon = { path = "../fcommon" }
+fharness = { path = "../fharness" }
+fprovider = { path = "../fprovider" }
+ftooling = { path = "../ftooling" }
+metrics = "0.24"
+tracing = "0.1"

@@ -8,4 +8,4 @@ members = [
     "fmemory",
     "fprovider",
     "ftooling"
-]
+, "fobserve"]

@@ -2,6 +2,7 @@
 
 mod error;
 mod harness;
+mod hooks;
 mod traits;
 mod types;
 
@@ -11,6 +12,7 @@ use fchat::ChatEvent;
 
 pub use error::{HarnessError, HarnessErrorKind};
 pub use harness::{Harness, HarnessBuilder};
+pub use hooks::{HarnessRuntimeHooks, NoopHarnessRuntimeHooks};
 pub use traits::{
     AcceptAllValidator, FeatureSelector, FirstPendingFeatureSelector, HealthChecker,
     NoopHealthChecker, OutcomeValidator,
@@ -28,7 +30,9 @@ mod tests {
 
     use fchat::{ChatPolicy, ChatService, ChatSession, ChatTurnResult, InMemoryConversationStore};
     use fcommon::{BoxFuture, SessionId};
-    use fmemory::{FeatureRecord, InitPlan, InitStep, InMemoryMemoryBackend, MemoryBackend, SessionManifest};
+    use fmemory::{
+        FeatureRecord, InMemoryMemoryBackend, InitPlan, InitStep, MemoryBackend, SessionManifest,
+    };
     use fprovider::{
         Message, ModelProvider, ModelRequest, ModelResponse, OutputItem, ProviderFuture,
         ProviderId, StopReason, StreamEvent, TokenUsage, ToolCall, VecEventStream,
@@ -266,6 +270,47 @@ mod tests {
                 *self.calls.lock().expect("calls lock") += 1;
                 Ok(())
             })
+        }
+    }
+
+    #[derive(Default)]
+    struct RecordingHarnessHooks {
+        events: Mutex<Vec<String>>,
+    }
+
+    impl HarnessRuntimeHooks for RecordingHarnessHooks {
+        fn on_phase_start(&self, phase: HarnessPhase, _session_id: &SessionId, run_id: &str) {
+            self.events
+                .lock()
+                .expect("events lock")
+                .push(format!("start:{:?}:{run_id}", phase));
+        }
+
+        fn on_phase_success(
+            &self,
+            phase: HarnessPhase,
+            _session_id: &SessionId,
+            run_id: &str,
+            _elapsed: std::time::Duration,
+        ) {
+            self.events
+                .lock()
+                .expect("events lock")
+                .push(format!("success:{:?}:{run_id}", phase));
+        }
+
+        fn on_phase_failure(
+            &self,
+            phase: HarnessPhase,
+            _session_id: &SessionId,
+            run_id: &str,
+            error: &HarnessError,
+            _elapsed: std::time::Duration,
+        ) {
+            self.events
+                .lock()
+                .expect("events lock")
+                .push(format!("failure:{:?}:{run_id}:{:?}", phase, error.kind));
         }
     }
 
@@ -1044,5 +1089,59 @@ mod tests {
 
         assert!(result.validated);
         assert!(!result.no_pending_features);
+    }
+
+    #[tokio::test]
+    async fn harness_hooks_report_phase_start_and_success() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let hooks = Arc::new(RecordingHarnessHooks::default());
+        let harness = Harness::builder(memory)
+            .provider(Arc::new(FakeProvider))
+            .hooks(hooks.clone())
+            .build()
+            .expect("builder should succeed");
+
+        let result = harness
+            .run_initializer(InitializerRequest::new(
+                "session-hooks",
+                "run-hooks",
+                "objective",
+            ))
+            .await
+            .expect("initializer should succeed");
+        assert!(result.created);
+
+        let events = hooks.events.lock().expect("events lock").clone();
+        assert!(events.contains(&"start:Initializer:run-hooks".to_string()));
+        assert!(events.contains(&"success:Initializer:run-hooks".to_string()));
+    }
+
+    #[tokio::test]
+    async fn harness_hooks_report_phase_failure() {
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let hooks = Arc::new(RecordingHarnessHooks::default());
+        let harness = Harness::builder(memory)
+            .provider(Arc::new(FakeProvider))
+            .hooks(hooks.clone())
+            .build()
+            .expect("builder should succeed");
+
+        let error = harness
+            .run_initializer(InitializerRequest::new(
+                "session-hooks-fail",
+                "run-fail",
+                "   ",
+            ))
+            .await
+            .expect_err("initializer should fail");
+        assert_eq!(error.kind, HarnessErrorKind::InvalidRequest);
+
+        let events = hooks.events.lock().expect("events lock").clone();
+        assert!(events.contains(&"start:Initializer:run-fail".to_string()));
+        assert!(
+            events
+                .iter()
+                .any(|event| event == "failure:Initializer:run-fail:InvalidRequest")
+        );
     }
 }

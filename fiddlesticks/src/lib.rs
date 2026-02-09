@@ -4,8 +4,8 @@
 //! It exposes a curated, facade-owned API surface with stable namespace modules,
 //! runtime/provider helpers, and macros for common setup and request-building flows.
 
-mod macros;
 mod agent;
+mod macros;
 mod providers;
 
 pub mod prelude;
@@ -19,10 +19,11 @@ pub use fchat::{
 };
 pub use fcommon::{BoxFuture, MetadataMap, SessionId, TraceId};
 pub use fharness::{
-    AcceptAllValidator, FailFastPolicy, FeatureSelector, FirstPendingFeatureSelector, Harness,
-    HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker, ChatEventObserver,
-    InitializerRequest, InitializerResult, NoopHealthChecker, OutcomeValidator, RunPolicy,
-    RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
+    AcceptAllValidator, ChatEventObserver, FailFastPolicy, FeatureSelector,
+    FirstPendingFeatureSelector, Harness, HarnessBuilder, HarnessError, HarnessErrorKind,
+    HarnessPhase, HealthChecker, InitializerRequest, InitializerResult, NoopHealthChecker,
+    OutcomeValidator, RunPolicy, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
+    TaskIterationResult,
 };
 pub use fmemory::{
     BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
@@ -43,14 +44,14 @@ pub use ftooling::{
     ToolRuntimeHooks, parse_json_object, parse_json_value, required_string,
 };
 
-pub use runtime::{
-    RuntimeBundle, build_runtime, build_runtime_with, build_runtime_with_memory,
-    build_runtime_with_tooling, chat_service, chat_service_with_memory, in_memory_backend,
-};
 pub use agent::{AgentHarnessBuilder, AgentRuntime};
 pub use providers::{
     ProviderBuildConfig, build_provider_from_api_key, build_provider_with_config,
     list_models_with_api_key,
+};
+pub use runtime::{
+    RuntimeBundle, build_runtime, build_runtime_with, build_runtime_with_memory,
+    build_runtime_with_tooling, chat_service, chat_service_with_memory, in_memory_backend,
 };
 pub use util::{
     assistant_message, parse_provider_id, session, streaming_turn, system_message, tool_message,
@@ -60,18 +61,18 @@ pub use util::{
 pub mod chat {
     pub use crate::{
         ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource, ChatEvent, ChatEventStream,
-        ChatPolicy, ChatService, ChatServiceBuilder, ChatSession, ChatTurnOptions,
-        ChatTurnRequest, ChatTurnRequestBuilder, ChatTurnResult, ConversationStore,
-        InMemoryConversationStore,
+        ChatPolicy, ChatService, ChatServiceBuilder, ChatSession, ChatTurnOptions, ChatTurnRequest,
+        ChatTurnRequestBuilder, ChatTurnResult, ConversationStore, InMemoryConversationStore,
     };
 }
 
 pub mod harness {
     pub use crate::{
-        AcceptAllValidator, FailFastPolicy, FeatureSelector, FirstPendingFeatureSelector, Harness,
-        HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker, ChatEventObserver,
-        InitializerRequest, InitializerResult, NoopHealthChecker, OutcomeValidator, RunPolicy,
-        RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
+        AcceptAllValidator, ChatEventObserver, FailFastPolicy, FeatureSelector,
+        FirstPendingFeatureSelector, Harness, HarnessBuilder, HarnessError, HarnessErrorKind,
+        HarnessPhase, HealthChecker, InitializerRequest, InitializerResult, NoopHealthChecker,
+        OutcomeValidator, RunPolicy, RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest,
+        TaskIterationResult,
     };
 }
 

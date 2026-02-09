@@ -5,8 +5,9 @@ use std::sync::Arc;
 
 use async_stream::try_stream;
 use fprovider::{
-    Message, ModelProvider, ModelRequest, NoopOperationHooks, OutputItem, RetryPolicy, Role,
-    StopReason, StreamEvent, TokenUsage, ToolCall, ToolResult, execute_with_retry,
+    Message, ModelProvider, ModelRequest, NoopOperationHooks, OutputItem, ProviderOperationHooks,
+    RetryPolicy, Role, StopReason, StreamEvent, TokenUsage, ToolCall, ToolResult,
+    execute_with_retry,
 };
 use ftooling::{ToolExecutionContext, ToolRuntime};
 use futures_timer::Delay;
@@ -40,6 +41,7 @@ pub struct ChatServiceBuilder {
     provider: Arc<dyn ModelProvider>,
     store: Arc<dyn ConversationStore>,
     tool_runtime: Option<Arc<dyn ToolRuntime>>,
+    provider_hooks: Arc<dyn ProviderOperationHooks>,
     policy: ChatPolicy,
 }
 
@@ -49,6 +51,7 @@ impl ChatServiceBuilder {
             provider,
             store: Arc::new(InMemoryConversationStore::new()),
             tool_runtime: None,
+            provider_hooks: Arc::new(NoopOperationHooks),
             policy: ChatPolicy::default(),
         }
     }
@@ -60,6 +63,11 @@ impl ChatServiceBuilder {
 
     pub fn tool_runtime(mut self, tool_runtime: Arc<dyn ToolRuntime>) -> Self {
         self.tool_runtime = Some(tool_runtime);
+        self
+    }
+
+    pub fn provider_operation_hooks(mut self, hooks: Arc<dyn ProviderOperationHooks>) -> Self {
+        self.provider_hooks = hooks;
         self
     }
 
@@ -93,6 +101,7 @@ impl ChatServiceBuilder {
             provider: self.provider,
             store: self.store,
             tool_runtime: self.tool_runtime,
+            provider_hooks: self.provider_hooks,
             policy: self.policy,
         }
     }
@@ -103,6 +112,7 @@ pub struct ChatService {
     provider: Arc<dyn ModelProvider>,
     store: Arc<dyn ConversationStore>,
     tool_runtime: Option<Arc<dyn ToolRuntime>>,
+    provider_hooks: Arc<dyn ProviderOperationHooks>,
     policy: ChatPolicy,
 }
 
@@ -116,12 +126,18 @@ impl ChatService {
             provider,
             store,
             tool_runtime: None,
+            provider_hooks: Arc::new(NoopOperationHooks),
             policy: ChatPolicy::default(),
         }
     }
 
     pub fn with_tool_runtime(mut self, tool_runtime: Arc<dyn ToolRuntime>) -> Self {
         self.tool_runtime = Some(tool_runtime);
+        self
+    }
+
+    pub fn with_provider_operation_hooks(mut self, hooks: Arc<dyn ProviderOperationHooks>) -> Self {
+        self.provider_hooks = hooks;
         self
     }
 
@@ -241,6 +257,7 @@ impl ChatService {
         } = self.prepare_turn(request).await?;
 
         let provider = Arc::clone(&self.provider);
+        let provider_hooks = Arc::clone(&self.provider_hooks);
         let store = Arc::clone(&self.store);
         let tool_runtime = self.tool_runtime.clone();
         let retry_policy = self.policy.provider_retry_policy.clone();
@@ -264,15 +281,27 @@ impl ChatService {
                 let mut provider_stream = {
                     let mut attempt = 1_u32;
                     loop {
+                        provider_hooks.on_attempt_start(session.provider, "stream", attempt);
                         match provider.stream(request.clone()).await {
-                            Ok(stream) => break stream,
+                            Ok(stream) => {
+                                provider_hooks.on_success(session.provider, "stream", attempt);
+                                break stream;
+                            }
                             Err(err)
                                 if retry_policy.should_retry(attempt, &err) => {
                                     let delay = retry_policy.backoff_for_attempt(attempt);
+                                    provider_hooks.on_retry_scheduled(
+                                        session.provider,
+                                        "stream",
+                                        attempt,
+                                        delay,
+                                        &err,
+                                    );
                                     Delay::new(delay).await;
                                     attempt += 1;
                                 }
                             Err(err) => {
+                                provider_hooks.on_failure(session.provider, "stream", attempt, &err);
                                 break Err::<fprovider::BoxedEventStream<'_>, _>(err)
                                     .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Provider))?;
                             }
@@ -428,13 +457,13 @@ impl ChatService {
     ) -> Result<fprovider::ModelResponse, ChatError> {
         let provider = Arc::clone(&self.provider);
         let policy = self.policy.provider_retry_policy.clone();
-        let hooks = NoopOperationHooks;
+        let hooks = Arc::clone(&self.provider_hooks);
 
         execute_with_retry(
             provider_id,
             "complete",
             &policy,
-            &hooks,
+            hooks.as_ref(),
             |_| {
                 let provider = Arc::clone(&provider);
                 let request = request.clone();
@@ -779,6 +808,27 @@ mod tests {
     #[derive(Debug)]
     struct FlakyStreamProvider {
         attempts: Mutex<u32>,
+    }
+
+    #[derive(Default)]
+    struct RecordingProviderHooks {
+        events: Mutex<Vec<String>>,
+    }
+
+    impl fprovider::ProviderOperationHooks for RecordingProviderHooks {
+        fn on_attempt_start(&self, provider: ProviderId, operation: &str, attempt: u32) {
+            self.events
+                .lock()
+                .expect("events lock")
+                .push(format!("start:{provider}:{operation}:{attempt}"));
+        }
+
+        fn on_success(&self, provider: ProviderId, operation: &str, attempts: u32) {
+            self.events
+                .lock()
+                .expect("events lock")
+                .push(format!("success:{provider}:{operation}:{attempts}"));
+        }
     }
 
     impl FlakyStreamProvider {
@@ -1155,6 +1205,53 @@ mod tests {
         assert!(saw_turn_complete);
         let attempts = provider.attempts.lock().expect("attempt lock");
         assert_eq!(*attempts, 2);
+    }
+
+    #[tokio::test]
+    async fn provider_hooks_are_called_for_complete_and_stream_operations() {
+        let hooks = Arc::new(RecordingProviderHooks::default());
+
+        let provider = Arc::new(FakeProvider::new());
+        let service = ChatService::builder(provider)
+            .provider_operation_hooks(hooks.clone())
+            .build();
+        let session = ChatSession::new("s13", ProviderId::OpenAi, "gpt-4o-mini");
+        let _ = service
+            .run_turn(ChatTurnRequest::new(session, "hello"))
+            .await
+            .expect("turn should succeed");
+
+        let provider = Arc::new(FakeProvider::new());
+        let service = ChatService::builder(provider)
+            .provider_operation_hooks(hooks.clone())
+            .build();
+        let session = ChatSession::new("s14", ProviderId::OpenAi, "gpt-4o-mini");
+        let mut stream = service
+            .stream_turn(ChatTurnRequest::new(session, "hello").enable_streaming())
+            .await
+            .expect("stream should start");
+
+        while let Some(item) = stream.next().await {
+            item.expect("stream event should be ok");
+        }
+
+        let events = hooks.events.lock().expect("events lock").clone();
+        assert!(
+            events
+                .iter()
+                .any(|event| event == "start:openai:complete:1")
+        );
+        assert!(
+            events
+                .iter()
+                .any(|event| event == "success:openai:complete:1")
+        );
+        assert!(events.iter().any(|event| event == "start:openai:stream:1"));
+        assert!(
+            events
+                .iter()
+                .any(|event| event == "success:openai:stream:1")
+        );
     }
 
     #[tokio::test]

@@ -41,7 +41,9 @@ pub fn build_provider_with_config(
 ) -> Result<Arc<dyn ModelProvider>, ProviderError> {
     let api_key = config.api_key.trim().to_string();
     if api_key.is_empty() {
-        return Err(ProviderError::authentication("provider API key must not be empty"));
+        return Err(ProviderError::authentication(
+            "provider API key must not be empty",
+        ));
     }
 
     let credentials = Arc::new(SecureCredentialManager::new());
@@ -102,9 +104,8 @@ fn build_anthropic_provider(
     http: Client,
 ) -> Result<Arc<dyn ModelProvider>, ProviderError> {
     credentials.set_anthropic_api_key(api_key)?;
-    let transport = Arc::new(
-        fprovider::adapters::anthropic::AnthropicProvider::default_http_transport(http),
-    );
+    let transport =
+        Arc::new(fprovider::adapters::anthropic::AnthropicProvider::default_http_transport(http));
     Ok(Arc::new(
         fprovider::adapters::anthropic::AnthropicProvider::new(credentials, transport),
     ))

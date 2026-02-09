@@ -13,6 +13,7 @@ The core architecture is spread across focused crates, with `fiddlesticks` as th
 - fchat (chat turn orchestration)
 - fmemory (harness state + transcript persistence)
 - fharness (initializer + task-iteration orchestration)
+- fobserve (observability hooks for provider/tool/harness phases)
 
 ## Recommended Dependency
 
@@ -162,6 +163,19 @@ let _ = (harness, request);
 
 Docs: `fharness/README.md`
 
+### `fobserve` (Observability hooks)
+
+Production-safe tracing and metrics hooks for provider operations, tool execution, and harness phase lifecycle events.
+
+```rust
+use fobserve::{MetricsObservabilityHooks, SafeProviderHooks};
+
+let hooks = SafeProviderHooks::new(MetricsObservabilityHooks);
+let _ = hooks;
+```
+
+Docs: `fobserve/README.md`
+
 ## Facade Features
 
 `fiddlesticks` exposes provider features so consumers can configure adapters in one place:
@@ -192,5 +206,5 @@ cargo test --workspace --all-features
 ## Release Process
 
 - `fiddlesticks` follows strict semver for public API compatibility: breaking changes are only released in new major versions.
-- Secondary crates in this workspace (`fcommon`, `fprovider`, `ftooling`, `fchat`, `fmemory`, `fharness`) are internal building blocks and may receive breaking changes at any time.
+- Secondary crates in this workspace (`fcommon`, `fprovider`, `ftooling`, `fchat`, `fmemory`, `fharness`, `fobserve`) are internal building blocks and may receive breaking changes at any time.
 - Application and downstream integration code should depend on `fiddlesticks` as the stable boundary and avoid direct coupling to secondary crates unless intentionally opting into unstable internals.

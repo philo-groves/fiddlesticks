@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Instant, SystemTime};
 
 use fchat::{ChatEvent, ChatPolicy, ChatService, ChatTurnRequest, ChatTurnResult};
 use fcommon::SessionId;
@@ -14,9 +14,9 @@ use futures_util::StreamExt;
 
 use crate::{
     AcceptAllValidator, ChatEventObserver, FeatureSelector, FirstPendingFeatureSelector,
-    HarnessError, HarnessPhase, HealthChecker, InitializerRequest, InitializerResult,
-    NoopHealthChecker, OutcomeValidator, RunPolicy, RuntimeRunOutcome, RuntimeRunRequest,
-    TaskIterationRequest, TaskIterationResult,
+    HarnessError, HarnessPhase, HarnessRuntimeHooks, HealthChecker, InitializerRequest,
+    InitializerResult, NoopHarnessRuntimeHooks, NoopHealthChecker, OutcomeValidator, RunPolicy,
+    RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
 };
 
 pub struct HarnessBuilder {
@@ -27,6 +27,7 @@ pub struct HarnessBuilder {
     health_checker: Arc<dyn HealthChecker>,
     validator: Arc<dyn OutcomeValidator>,
     feature_selector: Arc<dyn FeatureSelector>,
+    hooks: Arc<dyn HarnessRuntimeHooks>,
     run_policy: RunPolicy,
     schema_version: u32,
     harness_version: String,
@@ -42,6 +43,7 @@ impl HarnessBuilder {
             health_checker: Arc::new(NoopHealthChecker),
             validator: Arc::new(AcceptAllValidator),
             feature_selector: Arc::new(FirstPendingFeatureSelector),
+            hooks: Arc::new(NoopHarnessRuntimeHooks),
             run_policy: RunPolicy::default(),
             schema_version: SessionManifest::DEFAULT_SCHEMA_VERSION,
             harness_version: SessionManifest::DEFAULT_HARNESS_VERSION.to_string(),
@@ -83,6 +85,11 @@ impl HarnessBuilder {
         self
     }
 
+    pub fn hooks(mut self, hooks: Arc<dyn HarnessRuntimeHooks>) -> Self {
+        self.hooks = hooks;
+        self
+    }
+
     pub fn schema_version(mut self, schema_version: u32) -> Self {
         self.schema_version = schema_version;
         self
@@ -117,6 +124,7 @@ impl HarnessBuilder {
             health_checker: self.health_checker,
             validator: self.validator,
             feature_selector: self.feature_selector,
+            hooks: self.hooks,
             run_policy: self.run_policy,
             schema_version: self.schema_version,
             harness_version: self.harness_version,
@@ -131,6 +139,7 @@ pub struct Harness {
     health_checker: Arc<dyn HealthChecker>,
     validator: Arc<dyn OutcomeValidator>,
     feature_selector: Arc<dyn FeatureSelector>,
+    hooks: Arc<dyn HarnessRuntimeHooks>,
     run_policy: RunPolicy,
     schema_version: u32,
     harness_version: String,
@@ -151,6 +160,7 @@ impl Harness {
             health_checker: Arc::new(NoopHealthChecker),
             validator: Arc::new(AcceptAllValidator),
             feature_selector: Arc::new(FirstPendingFeatureSelector),
+            hooks: Arc::new(NoopHarnessRuntimeHooks),
             run_policy: RunPolicy::default(),
             schema_version: SessionManifest::DEFAULT_SCHEMA_VERSION,
             harness_version: SessionManifest::DEFAULT_HARNESS_VERSION.to_string(),
@@ -178,6 +188,11 @@ impl Harness {
 
     pub fn with_feature_selector(mut self, feature_selector: Arc<dyn FeatureSelector>) -> Self {
         self.feature_selector = feature_selector;
+        self
+    }
+
+    pub fn with_hooks(mut self, hooks: Arc<dyn HarnessRuntimeHooks>) -> Self {
+        self.hooks = hooks;
         self
     }
 
@@ -261,6 +276,78 @@ impl Harness {
         &self,
         request: InitializerRequest,
     ) -> Result<InitializerResult, HarnessError> {
+        let phase_started_at = Instant::now();
+        let session_id = request.session_id.clone();
+        let run_id = request.run_id.clone();
+        self.hooks
+            .on_phase_start(HarnessPhase::Initializer, &session_id, &run_id);
+
+        let result = self.run_initializer_inner(request).await;
+
+        match &result {
+            Ok(_) => self.hooks.on_phase_success(
+                HarnessPhase::Initializer,
+                &session_id,
+                &run_id,
+                phase_started_at.elapsed(),
+            ),
+            Err(error) => self.hooks.on_phase_failure(
+                HarnessPhase::Initializer,
+                &session_id,
+                &run_id,
+                error,
+                phase_started_at.elapsed(),
+            ),
+        }
+
+        result
+    }
+
+    pub async fn run_task_iteration(
+        &self,
+        request: TaskIterationRequest,
+    ) -> Result<TaskIterationResult, HarnessError> {
+        self.run_task_iteration_with_observer(request, None).await
+    }
+
+    pub async fn run_task_iteration_with_observer(
+        &self,
+        request: TaskIterationRequest,
+        event_observer: Option<ChatEventObserver>,
+    ) -> Result<TaskIterationResult, HarnessError> {
+        let phase_started_at = Instant::now();
+        let session_id = request.session.id.clone();
+        let run_id = request.run_id.clone();
+        self.hooks
+            .on_phase_start(HarnessPhase::TaskIteration, &session_id, &run_id);
+
+        let result = self
+            .run_task_iteration_with_observer_inner(request, event_observer)
+            .await;
+
+        match &result {
+            Ok(_) => self.hooks.on_phase_success(
+                HarnessPhase::TaskIteration,
+                &session_id,
+                &run_id,
+                phase_started_at.elapsed(),
+            ),
+            Err(error) => self.hooks.on_phase_failure(
+                HarnessPhase::TaskIteration,
+                &session_id,
+                &run_id,
+                error,
+                phase_started_at.elapsed(),
+            ),
+        }
+
+        result
+    }
+
+    async fn run_initializer_inner(
+        &self,
+        request: InitializerRequest,
+    ) -> Result<InitializerResult, HarnessError> {
         let InitializerRequest {
             session_id,
             run_id,
@@ -323,14 +410,7 @@ impl Harness {
         })
     }
 
-    pub async fn run_task_iteration(
-        &self,
-        request: TaskIterationRequest,
-    ) -> Result<TaskIterationResult, HarnessError> {
-        self.run_task_iteration_with_observer(request, None).await
-    }
-
-    pub async fn run_task_iteration_with_observer(
+    async fn run_task_iteration_with_observer_inner(
         &self,
         request: TaskIterationRequest,
         event_observer: Option<ChatEventObserver>,
@@ -756,7 +836,10 @@ mod tests {
     #[test]
     fn validate_feature_list_rejects_empty_input() {
         let error = validate_feature_list(&[]).expect_err("empty list should fail");
-        assert_eq!(error.message, "feature_list must contain at least one feature");
+        assert_eq!(
+            error.message,
+            "feature_list must contain at least one feature"
+        );
     }
 
     #[test]

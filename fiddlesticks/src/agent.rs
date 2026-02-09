@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use crate::{
-    in_memory_backend, AcceptAllValidator, ChatPolicy, ChatService, FeatureSelector,
-    FirstPendingFeatureSelector, Harness, HarnessError, HealthChecker, MemoryBackend,
-    MemoryConversationStore, NoopHealthChecker, OutcomeValidator, RunPolicy, ToolRuntime,
+    AcceptAllValidator, ChatPolicy, ChatService, FeatureSelector, FirstPendingFeatureSelector,
+    Harness, HarnessError, HealthChecker, MemoryBackend, MemoryConversationStore,
+    NoopHealthChecker, OutcomeValidator, RunPolicy, ToolRuntime, in_memory_backend,
 };
 use crate::{ModelProvider, RuntimeBundle};
 
