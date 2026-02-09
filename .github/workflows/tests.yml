@@ -105,7 +105,7 @@ jobs:
         run: cargo test --workspace --all-features
 
   msrv:
-    name: MSRV check (1.85.0)
+    name: MSRV check (1.95.0)
     runs-on: ubuntu-latest
 
     steps:
@@ -116,7 +116,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.95.0
 
       - name: Cache Rust artifacts
         uses: Swatinem/rust-cache@v2

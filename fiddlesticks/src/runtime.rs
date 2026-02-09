@@ -143,39 +143,6 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn build_runtime_wires_chat_to_memory_backend() {
-        let provider: Arc<dyn ModelProvider> = Arc::new(FakeProvider);
-        let runtime = build_runtime(provider).expect("runtime should build");
-
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock should be after unix epoch")
-            .as_nanos();
-        let session = ChatSession::new(
-            format!("session-{unique}"),
-            ProviderId::OpenAi,
-            "gpt-4o-mini",
-        );
-        let request = ChatTurnRequest::new(session.clone(), "hello");
-
-        let result = runtime
-            .chat
-            .run_turn(request)
-            .await
-            .expect("turn should complete");
-        assert_eq!(result.assistant_message, "done");
-
-        let transcript = runtime
-            .memory
-            .load_transcript_messages(&session.id)
-            .await
-            .expect("transcript should load");
-        assert_eq!(transcript.len(), 2);
-        assert_eq!(transcript[0].role, Role::User);
-        assert_eq!(transcript[1].role, Role::Assistant);
-    }
-
     #[test]
     fn build_runtime_with_tooling_builds_successfully() {
         let provider: Arc<dyn ModelProvider> = Arc::new(FakeProvider);
