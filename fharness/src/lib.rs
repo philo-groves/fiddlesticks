@@ -18,6 +18,8 @@ use fprovider::ModelProvider;
 use ftooling::ToolRuntime;
 use futures_util::StreamExt;
 
+pub type ChatEventObserver = Arc<dyn Fn(ChatEvent) + Send + Sync>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HarnessErrorKind {
     InvalidRequest,
@@ -551,6 +553,14 @@ impl Harness {
     }
 
     pub async fn run(&self, request: RuntimeRunRequest) -> Result<RuntimeRunOutcome, HarnessError> {
+        self.run_with_observer(request, None).await
+    }
+
+    pub async fn run_with_observer(
+        &self,
+        request: RuntimeRunRequest,
+        event_observer: Option<ChatEventObserver>,
+    ) -> Result<RuntimeRunOutcome, HarnessError> {
         let phase = self.select_phase(&request.session.id).await?;
         match phase {
             HarnessPhase::Initializer => {
@@ -587,7 +597,7 @@ impl Harness {
                     task_iteration = task_iteration.with_prompt_override(prompt_override);
                 }
 
-                self.run_task_iteration(task_iteration)
+                self.run_task_iteration_with_observer(task_iteration, event_observer)
                     .await
                     .map(RuntimeRunOutcome::TaskIteration)
             }
@@ -664,6 +674,14 @@ impl Harness {
         &self,
         request: TaskIterationRequest,
     ) -> Result<TaskIterationResult, HarnessError> {
+        self.run_task_iteration_with_observer(request, None).await
+    }
+
+    pub async fn run_task_iteration_with_observer(
+        &self,
+        request: TaskIterationRequest,
+        event_observer: Option<ChatEventObserver>,
+    ) -> Result<TaskIterationResult, HarnessError> {
         let chat = self
             .chat
             .as_ref()
@@ -677,7 +695,9 @@ impl Harness {
             )
             .await?;
 
-        let result = self.run_task_iteration_inner(chat, &request).await;
+        let result = self
+            .run_task_iteration_inner(chat, &request, event_observer)
+            .await;
 
         match &result {
             Ok(value) => {
@@ -797,6 +817,7 @@ impl Harness {
         &self,
         chat: &ChatService,
         request: &TaskIterationRequest,
+        event_observer: Option<ChatEventObserver>,
     ) -> Result<TaskIterationResult, HarnessError> {
         let bootstrap = self
             .memory
@@ -858,7 +879,10 @@ impl Harness {
                 ChatTurnRequest::builder(request.session.clone(), prompt).build()
             };
 
-            let turn_result = match self.execute_turn(chat, turn_request).await {
+            let turn_result = match self
+                .execute_turn(chat, turn_request, event_observer.clone())
+                .await
+            {
                 Ok(result) => result,
                 Err(error) => {
                     if self.run_policy.fail_fast.on_chat_error
@@ -923,14 +947,21 @@ impl Harness {
         &self,
         chat: &ChatService,
         turn_request: ChatTurnRequest,
+        event_observer: Option<ChatEventObserver>,
     ) -> Result<ChatTurnResult, HarnessError> {
         if turn_request.options.stream {
             let mut stream = chat.stream_turn(turn_request).await?;
             let mut final_result = None;
             while let Some(item) = stream.next().await {
                 match item {
-                    Ok(ChatEvent::TurnComplete(turn_result)) => final_result = Some(turn_result),
-                    Ok(_) => {}
+                    Ok(event) => {
+                        if let Some(observer) = event_observer.as_ref() {
+                            observer(event.clone());
+                        }
+                        if let ChatEvent::TurnComplete(turn_result) = event {
+                            final_result = Some(turn_result);
+                        }
+                    }
                     Err(err) => return Err(HarnessError::from(err)),
                 }
             }

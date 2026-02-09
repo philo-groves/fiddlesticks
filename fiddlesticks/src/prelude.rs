@@ -12,11 +12,12 @@ pub use crate::{
 pub use crate::{fs_messages, fs_msg, fs_session};
 pub use crate::{
     BoxFuture, ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource, ChatEvent,
-    ChatEventStream, ChatPolicy, ChatService, ChatServiceBuilder, ChatSession, ChatTurnOptions,
-    ChatTurnRequest, ChatTurnRequestBuilder, ChatTurnResult, ConversationStore, DefaultToolRuntime,
-    FeatureRecord, Harness, HarnessBuilder, HarnessError, InMemoryConversationStore,
-    InMemoryMemoryBackend, InitializerRequest, MemoryBackend, MemoryConversationStore, Message,
-    ModelProvider, ModelRequest, ModelRequestBuilder, ProviderError, ProviderId, Role, RunPolicy,
-    RuntimeBundle, RuntimeRunRequest, SessionId, Tool, ToolCall, ToolDefinition, ToolError,
-    ToolExecutionContext, ToolExecutionResult, ToolRegistry, ToolRuntime,
+    ChatEventObserver, ChatEventStream, ChatPolicy, ChatService, ChatServiceBuilder, ChatSession,
+    ChatTurnOptions, ChatTurnRequest, ChatTurnRequestBuilder, ChatTurnResult, ConversationStore,
+    DefaultToolRuntime, FeatureRecord, Harness, HarnessBuilder, HarnessError,
+    InMemoryConversationStore, InMemoryMemoryBackend, InitializerRequest, MemoryBackend,
+    MemoryConversationStore, Message, ModelProvider, ModelRequest, ModelRequestBuilder,
+    ProviderError, ProviderId, Role, RunPolicy, RuntimeBundle, RuntimeRunRequest, SessionId, Tool,
+    ToolCall, ToolDefinition, ToolError, ToolExecutionContext, ToolExecutionResult, ToolRegistry,
+    ToolRuntime,
 };

@@ -20,7 +20,7 @@ pub use fchat::{
 pub use fcommon::{BoxFuture, MetadataMap, SessionId, TraceId};
 pub use fharness::{
     AcceptAllValidator, FailFastPolicy, FeatureSelector, FirstPendingFeatureSelector, Harness,
-    HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker,
+    HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker, ChatEventObserver,
     InitializerRequest, InitializerResult, NoopHealthChecker, OutcomeValidator, RunPolicy,
     RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
 };
@@ -68,7 +68,7 @@ pub mod chat {
 pub mod harness {
     pub use crate::{
         AcceptAllValidator, FailFastPolicy, FeatureSelector, FirstPendingFeatureSelector, Harness,
-        HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker,
+        HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker, ChatEventObserver,
         InitializerRequest, InitializerResult, NoopHealthChecker, OutcomeValidator, RunPolicy,
         RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
     };
