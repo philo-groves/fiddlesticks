@@ -6,6 +6,7 @@ members = [
     "fcommon", 
     "fharness",
     "fmemory",
+    "fobserve",
     "fprovider",
     "ftooling"
-, "fobserve"]
+]
