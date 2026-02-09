@@ -4,11 +4,6 @@
 
 The project currently tracks security fixes on the latest released line.
 
-| Version | Supported |
-| --- | --- |
-| 1.x (current release line) | Yes |
-| 0.x (pre-1.0 releases) | Best effort |
-
 ## Reporting a Vulnerability (GitHub Issues)
 
 Security reports are tracked in GitHub Issues.
