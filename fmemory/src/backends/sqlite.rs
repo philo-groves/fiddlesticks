@@ -26,9 +26,7 @@ impl SqliteMemoryBackend {
             && !parent.as_os_str().is_empty()
         {
             std::fs::create_dir_all(parent).map_err(|error| {
-                MemoryError::storage(format!(
-                    "failed to create sqlite parent directory: {error}"
-                ))
+                MemoryError::storage(format!("failed to create sqlite parent directory: {error}"))
             })?;
         }
 
