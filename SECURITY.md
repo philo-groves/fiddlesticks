@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-The project currently tracks security fixes on the latest released line.
+The project currently tracks security fixes on the latest released line, and the prerelease line.
 
 ## Reporting a Vulnerability (GitHub Issues)
 
