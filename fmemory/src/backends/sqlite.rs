@@ -35,6 +35,11 @@ impl SqliteMemoryBackend {
         let connection = Connection::open(path).map_err(|error| {
             MemoryError::storage(format!("failed to open sqlite database: {error}"))
         })?;
+        connection
+            .busy_timeout(Duration::from_secs(5))
+            .map_err(|error| {
+                MemoryError::storage(format!("failed to configure sqlite busy timeout: {error}"))
+            })?;
         let backend = Self {
             connection: Mutex::new(connection),
         };
@@ -46,6 +51,11 @@ impl SqliteMemoryBackend {
         let connection = Connection::open_in_memory().map_err(|error| {
             MemoryError::storage(format!("failed to open in-memory sqlite database: {error}"))
         })?;
+        connection
+            .busy_timeout(Duration::from_secs(5))
+            .map_err(|error| {
+                MemoryError::storage(format!("failed to configure sqlite busy timeout: {error}"))
+            })?;
         let backend = Self {
             connection: Mutex::new(connection),
         };
