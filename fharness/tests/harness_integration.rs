@@ -3,7 +3,7 @@ use std::sync::Arc;
 use fchat::ChatSession;
 use fcommon::{BoxFuture, SessionId};
 use fharness::{
-    Harness, InitializerRequest, OutcomeValidator, RuntimeRunOutcome, RuntimeRunRequest,
+    Harness, InitializerRequest, OutcomeValidator, RunPolicy, RuntimeRunOutcome, RuntimeRunRequest,
     TaskIterationRequest,
 };
 use fmemory::{FeatureRecord, InMemoryMemoryBackend, MemoryBackend};
@@ -132,6 +132,9 @@ async fn task_iteration_picks_one_failing_feature_and_updates_progress() {
         .expect("task iteration should succeed");
 
     assert_eq!(result.selected_feature_id.as_deref(), Some("feature-a"));
+    assert_eq!(result.processed_feature_ids, vec!["feature-a".to_string()]);
+    assert_eq!(result.validated_feature_ids, vec!["feature-a".to_string()]);
+    assert_eq!(result.processed_feature_count, 1);
     assert!(result.validated);
     assert!(!result.no_pending_features);
 
@@ -164,6 +167,81 @@ async fn task_iteration_picks_one_failing_feature_and_updates_progress() {
             .iter()
             .any(|cp| cp.run_id == "run-code-1" && cp.completed_at.is_some())
     );
+}
+
+#[tokio::test]
+async fn bounded_batch_mode_processes_up_to_feature_limit() {
+    let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+    let harness = Harness::builder(memory.clone())
+        .provider(Arc::new(FixedAssistantProvider))
+        .run_policy(RunPolicy::bounded_batch(2))
+        .build()
+        .expect("builder should succeed");
+
+    harness
+        .run_initializer(
+            InitializerRequest::new("integration-bounded", "run-init", "implement features")
+                .with_feature_list(vec![feature("feature-a"), feature("feature-b"), feature("feature-c")]),
+        )
+        .await
+        .expect("initializer should succeed");
+
+    let session = ChatSession::new("integration-bounded", ProviderId::OpenAi, "gpt-4o-mini");
+    let result = harness
+        .run_task_iteration(TaskIterationRequest::new(session, "run-code-1"))
+        .await
+        .expect("task iteration should succeed");
+
+    assert_eq!(result.processed_feature_count, 2);
+    assert_eq!(result.processed_feature_ids.len(), 2);
+    assert_eq!(result.validated_feature_ids.len(), 2);
+    assert!(result.validated);
+    assert!(!result.no_pending_features);
+
+    let bootstrap = memory
+        .load_bootstrap_state(&SessionId::from("integration-bounded"))
+        .await
+        .expect("bootstrap state should load");
+
+    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-a" && f.passes));
+    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-b" && f.passes));
+    assert!(bootstrap.feature_list.iter().any(|f| f.id == "feature-c" && !f.passes));
+}
+
+#[tokio::test]
+async fn unlimited_batch_mode_processes_all_pending_features() {
+    let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+    let harness = Harness::builder(memory.clone())
+        .provider(Arc::new(FixedAssistantProvider))
+        .run_policy(RunPolicy::unlimited_batch())
+        .build()
+        .expect("builder should succeed");
+
+    harness
+        .run_initializer(
+            InitializerRequest::new("integration-unlimited", "run-init", "implement features")
+                .with_feature_list(vec![feature("feature-a"), feature("feature-b"), feature("feature-c")]),
+        )
+        .await
+        .expect("initializer should succeed");
+
+    let session = ChatSession::new("integration-unlimited", ProviderId::OpenAi, "gpt-4o-mini");
+    let result = harness
+        .run_task_iteration(TaskIterationRequest::new(session, "run-code-1"))
+        .await
+        .expect("task iteration should succeed");
+
+    assert_eq!(result.processed_feature_count, 3);
+    assert_eq!(result.processed_feature_ids.len(), 3);
+    assert_eq!(result.validated_feature_ids.len(), 3);
+    assert!(result.validated);
+    assert!(result.no_pending_features);
+
+    let bootstrap = memory
+        .load_bootstrap_state(&SessionId::from("integration-unlimited"))
+        .await
+        .expect("bootstrap state should load");
+    assert!(bootstrap.feature_list.iter().all(|f| f.passes));
 }
 
 #[tokio::test]

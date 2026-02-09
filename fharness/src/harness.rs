@@ -437,29 +437,32 @@ impl Harness {
                 let (status, note) = if value.no_pending_features {
                     (
                         RunStatus::Succeeded,
-                        "All required features pass=true in feature_list; completion gate satisfied"
-                            .to_string(),
+                        format!(
+                            "All required features pass=true in feature_list; completion gate satisfied (processed={}, validated={})",
+                            value.processed_feature_count,
+                            value.validated_feature_ids.len()
+                        ),
                     )
                 } else if value.validated {
                     (
                         RunStatus::Succeeded,
                         format!(
-                            "Feature '{}' validated and marked passing; remaining required features still pending",
-                            value
-                                .selected_feature_id
-                                .clone()
-                                .unwrap_or_else(|| "unknown".to_string())
+                            "Validated {} feature(s) this run (processed={}); remaining required features still pending",
+                            value.validated_feature_ids.len(),
+                            value.processed_feature_count,
                         ),
                     )
                 } else {
                     (
                         RunStatus::Failed,
                         format!(
-                            "Feature '{}' was not validated; left failing for next run",
+                            "Feature '{}' was not validated; processed={} validated={} and left failing for next run",
                             value
                                 .selected_feature_id
                                 .clone()
-                                .unwrap_or_else(|| "unknown".to_string())
+                                .unwrap_or_else(|| "unknown".to_string()),
+                            value.processed_feature_count,
+                            value.validated_feature_ids.len(),
                         ),
                     )
                 };
@@ -578,6 +581,9 @@ impl Harness {
             return Ok(TaskIterationResult {
                 session_id: request.session.id.clone(),
                 selected_feature_id: None,
+                processed_feature_ids: Vec::new(),
+                validated_feature_ids: Vec::new(),
+                processed_feature_count: 0,
                 validated: true,
                 no_pending_features: true,
                 used_stream: request.stream,
@@ -585,94 +591,129 @@ impl Harness {
             });
         }
 
-        let feature = self.feature_selector.select(&bootstrap.feature_list);
+        let max_features_for_run = self.run_policy.max_features_per_run_limit();
+        let mut processed_feature_ids = Vec::new();
+        let mut validated_feature_ids = Vec::new();
+        let mut selected_feature_id = None;
+        let mut last_assistant_message = None;
 
-        let Some(feature) = feature else {
-            return Err(HarnessError::validation(
-                "feature selector returned no work before required features reached passes=true",
-            ));
-        };
+        while match max_features_for_run {
+            Some(limit) => processed_feature_ids.len() < limit,
+            None => true,
+        } {
+            let feature_list = self
+                .memory
+                .load_bootstrap_state(&request.session.id)
+                .await?
+                .feature_list;
 
-        let mut turns_used = 0usize;
-        let mut retries_remaining = self.run_policy.retry_budget;
-
-        while turns_used < self.run_policy.max_turns_per_run {
-            turns_used += 1;
-
-            let prompt = request
-                .prompt_override
-                .clone()
-                .unwrap_or_else(|| build_feature_prompt(&feature, &manifest.current_objective));
-
-            let turn_request = if request.stream {
-                ChatTurnRequest::builder(request.session.clone(), prompt)
-                    .enable_streaming()
-                    .build()
-            } else {
-                ChatTurnRequest::builder(request.session.clone(), prompt).build()
-            };
-
-            let turn_result = match self
-                .execute_turn(chat, turn_request, event_observer.clone())
-                .await
-            {
-                Ok(result) => result,
-                Err(error) => {
-                    if self.run_policy.fail_fast.on_chat_error
-                        || retries_remaining == 0
-                        || turns_used >= self.run_policy.max_turns_per_run
-                    {
-                        return Err(error);
-                    }
-
-                    retries_remaining -= 1;
-                    continue;
-                }
-            };
-
-            let validated = self.validator.validate(&feature, &turn_result).await?;
-            if validated {
-                self.memory
-                    .update_feature_pass(&request.session.id, &feature.id, true)
-                    .await?;
-                let all_features_passing = self
-                    .session_all_required_features_passed(&request.session.id)
-                    .await?;
-
+            if all_required_features_passed(&feature_list) {
                 return Ok(TaskIterationResult {
                     session_id: request.session.id.clone(),
-                    selected_feature_id: Some(feature.id.clone()),
+                    selected_feature_id,
+                    processed_feature_count: processed_feature_ids.len(),
+                    processed_feature_ids,
+                    validated_feature_ids,
                     validated: true,
-                    no_pending_features: all_features_passing,
+                    no_pending_features: true,
                     used_stream: request.stream,
-                    assistant_message: Some(turn_result.assistant_message),
+                    assistant_message: last_assistant_message,
                 });
             }
 
-            if self.run_policy.fail_fast.on_validation_failure
-                || retries_remaining == 0
-                || turns_used >= self.run_policy.max_turns_per_run
-            {
-                return Ok(TaskIterationResult {
-                    session_id: request.session.id.clone(),
-                    selected_feature_id: Some(feature.id.clone()),
-                    validated: false,
-                    no_pending_features: false,
-                    used_stream: request.stream,
-                    assistant_message: Some(turn_result.assistant_message),
-                });
-            }
+            let feature = self.feature_selector.select(&feature_list);
+            let Some(feature) = feature else {
+                return Err(HarnessError::validation(
+                    "feature selector returned no work before required features reached passes=true",
+                ));
+            };
 
-            retries_remaining -= 1;
+            processed_feature_ids.push(feature.id.clone());
+            selected_feature_id = Some(feature.id.clone());
+
+            let mut turns_used = 0usize;
+            let mut retries_remaining = self.run_policy.retry_budget;
+
+            while turns_used < self.run_policy.max_turns_per_run {
+                turns_used += 1;
+
+                let prompt = request
+                    .prompt_override
+                    .clone()
+                    .unwrap_or_else(|| build_feature_prompt(&feature, &manifest.current_objective));
+
+                let turn_request = if request.stream {
+                    ChatTurnRequest::builder(request.session.clone(), prompt)
+                        .enable_streaming()
+                        .build()
+                } else {
+                    ChatTurnRequest::builder(request.session.clone(), prompt).build()
+                };
+
+                let turn_result = match self
+                    .execute_turn(chat, turn_request, event_observer.clone())
+                    .await
+                {
+                    Ok(result) => result,
+                    Err(error) => {
+                        if self.run_policy.fail_fast.on_chat_error
+                            || retries_remaining == 0
+                            || turns_used >= self.run_policy.max_turns_per_run
+                        {
+                            return Err(error);
+                        }
+
+                        retries_remaining -= 1;
+                        continue;
+                    }
+                };
+
+                let assistant_message = turn_result.assistant_message.clone();
+                let validated = self.validator.validate(&feature, &turn_result).await?;
+                if validated {
+                    self.memory
+                        .update_feature_pass(&request.session.id, &feature.id, true)
+                        .await?;
+                    validated_feature_ids.push(feature.id.clone());
+                    last_assistant_message = Some(assistant_message);
+                    break;
+                }
+
+                if self.run_policy.fail_fast.on_validation_failure
+                    || retries_remaining == 0
+                    || turns_used >= self.run_policy.max_turns_per_run
+                {
+                    return Ok(TaskIterationResult {
+                        session_id: request.session.id.clone(),
+                        selected_feature_id,
+                        processed_feature_count: processed_feature_ids.len(),
+                        processed_feature_ids,
+                        validated_feature_ids,
+                        validated: false,
+                        no_pending_features: false,
+                        used_stream: request.stream,
+                        assistant_message: Some(assistant_message),
+                    });
+                }
+
+                retries_remaining -= 1;
+                last_assistant_message = Some(assistant_message);
+            }
         }
 
+        let no_pending_features = self
+            .session_all_required_features_passed(&request.session.id)
+            .await?;
         Ok(TaskIterationResult {
             session_id: request.session.id.clone(),
-            selected_feature_id: Some(feature.id),
-            validated: false,
-            no_pending_features: false,
+            selected_feature_id,
+            processed_feature_count: processed_feature_ids.len(),
+            processed_feature_ids,
+            validated_feature_ids,
+            validated: true,
+            no_pending_features,
             used_stream: request.stream,
-            assistant_message: None,
+            assistant_message: last_assistant_message,
         })
     }
 

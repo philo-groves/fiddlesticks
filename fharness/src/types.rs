@@ -95,6 +95,9 @@ impl TaskIterationRequest {
 pub struct TaskIterationResult {
     pub session_id: SessionId,
     pub selected_feature_id: Option<String>,
+    pub processed_feature_ids: Vec<String>,
+    pub validated_feature_ids: Vec<String>,
+    pub processed_feature_count: usize,
     pub validated: bool,
     pub no_pending_features: bool,
     pub used_stream: bool,
@@ -183,6 +186,13 @@ pub struct FailFastPolicy {
     pub on_validation_failure: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunPolicyMode {
+    StrictIncremental,
+    BoundedBatch,
+    UnlimitedBatch,
+}
+
 impl Default for FailFastPolicy {
     fn default() -> Self {
         Self {
@@ -195,6 +205,7 @@ impl Default for FailFastPolicy {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunPolicy {
+    pub mode: RunPolicyMode,
     pub max_turns_per_run: usize,
     pub max_features_per_run: usize,
     pub retry_budget: usize,
@@ -204,6 +215,7 @@ pub struct RunPolicy {
 impl Default for RunPolicy {
     fn default() -> Self {
         Self {
+            mode: RunPolicyMode::StrictIncremental,
             max_turns_per_run: 1,
             max_features_per_run: 1,
             retry_budget: 0,
@@ -213,6 +225,25 @@ impl Default for RunPolicy {
 }
 
 impl RunPolicy {
+    pub fn strict() -> Self {
+        Self::default()
+    }
+
+    pub fn bounded_batch(max_features_per_run: usize) -> Self {
+        Self {
+            mode: RunPolicyMode::BoundedBatch,
+            max_features_per_run,
+            ..Self::default()
+        }
+    }
+
+    pub fn unlimited_batch() -> Self {
+        Self {
+            mode: RunPolicyMode::UnlimitedBatch,
+            ..Self::default()
+        }
+    }
+
     pub fn validate(&self) -> Result<(), HarnessError> {
         if self.max_turns_per_run == 0 {
             return Err(HarnessError::invalid_request(
@@ -220,12 +251,32 @@ impl RunPolicy {
             ));
         }
 
-        if self.max_features_per_run != 1 {
-            return Err(HarnessError::invalid_request(
-                "run policy requires max_features_per_run = 1 for strict incremental runs",
-            ));
+        match self.mode {
+            RunPolicyMode::StrictIncremental => {
+                if self.max_features_per_run != 1 {
+                    return Err(HarnessError::invalid_request(
+                        "run policy strict mode requires max_features_per_run = 1",
+                    ));
+                }
+            }
+            RunPolicyMode::BoundedBatch => {
+                if self.max_features_per_run == 0 {
+                    return Err(HarnessError::invalid_request(
+                        "run policy bounded-batch mode requires max_features_per_run >= 1",
+                    ));
+                }
+            }
+            RunPolicyMode::UnlimitedBatch => {}
         }
 
         Ok(())
+    }
+
+    pub fn max_features_per_run_limit(&self) -> Option<usize> {
+        match self.mode {
+            RunPolicyMode::StrictIncremental => Some(1),
+            RunPolicyMode::BoundedBatch => Some(self.max_features_per_run),
+            RunPolicyMode::UnlimitedBatch => None,
+        }
     }
 }

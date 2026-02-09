@@ -19,6 +19,7 @@ pub use traits::{
 };
 pub use types::{
     FailFastPolicy, HarnessPhase, InitializerRequest, InitializerResult, RunPolicy,
+    RunPolicyMode,
     RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
 };
 
@@ -930,11 +931,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_policy_enforces_strict_incremental_feature_limit() {
+    async fn run_policy_modes_enforce_feature_limits() {
         let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
         let error = Harness::builder(memory)
             .provider(Arc::new(FakeProvider))
             .run_policy(RunPolicy {
+                mode: RunPolicyMode::StrictIncremental,
                 max_turns_per_run: 1,
                 max_features_per_run: 2,
                 retry_budget: 0,
@@ -945,6 +947,29 @@ mod tests {
             .expect("policy should reject non-incremental feature count");
 
         assert_eq!(error.kind, HarnessErrorKind::InvalidRequest);
+
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        let error = Harness::builder(memory)
+            .provider(Arc::new(FakeProvider))
+            .run_policy(RunPolicy {
+                mode: RunPolicyMode::BoundedBatch,
+                max_turns_per_run: 1,
+                max_features_per_run: 0,
+                retry_budget: 0,
+                fail_fast: FailFastPolicy::default(),
+            })
+            .build()
+            .err()
+            .expect("bounded batch should reject zero feature limit");
+
+        assert_eq!(error.kind, HarnessErrorKind::InvalidRequest);
+
+        let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
+        Harness::builder(memory)
+            .provider(Arc::new(FakeProvider))
+            .run_policy(RunPolicy::unlimited_batch())
+            .build()
+            .expect("unlimited batch mode should be accepted");
     }
 
     #[tokio::test]
@@ -956,6 +981,7 @@ mod tests {
             Some(Arc::new(EventuallyPassingValidator::new(2))),
         )
         .with_run_policy(RunPolicy {
+            mode: RunPolicyMode::StrictIncremental,
             max_turns_per_run: 3,
             max_features_per_run: 1,
             retry_budget: 2,
@@ -986,6 +1012,7 @@ mod tests {
         let memory: Arc<dyn MemoryBackend> = Arc::new(InMemoryMemoryBackend::new());
         let harness = build_harness(memory.clone(), None, Some(Arc::new(AlwaysFailValidator)))
             .with_run_policy(RunPolicy {
+                mode: RunPolicyMode::StrictIncremental,
                 max_turns_per_run: 1,
                 max_features_per_run: 1,
                 retry_budget: 3,
@@ -1014,6 +1041,7 @@ mod tests {
             .provider(Arc::new(FlakyCompletionProvider::new(1)))
             .validator(Arc::new(AcceptAllValidator))
             .run_policy(RunPolicy {
+                mode: RunPolicyMode::StrictIncremental,
                 max_turns_per_run: 3,
                 max_features_per_run: 1,
                 retry_budget: 1,

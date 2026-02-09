@@ -104,10 +104,17 @@ let _result = harness.run_initializer(request).await?;
 
 Harness run policy now supports reliability constraints:
 
+- `mode` (`strict_incremental`, `bounded_batch`, `unlimited_batch`)
 - `max_turns_per_run`
-- `max_features_per_run = 1` (strict incremental)
+- `max_features_per_run` (used by strict/bounded modes)
 - `retry_budget`
 - fail-fast conditions (`health check`, `chat`, `validation`)
+
+Mode semantics:
+
+- `strict_incremental`: exactly one feature per run (`max_features_per_run` must be `1`)
+- `bounded_batch`: process up to `max_features_per_run` features in one run
+- `unlimited_batch`: process features until completion gate or turn/retry constraints stop progress
 
 Completion guardrail:
 
