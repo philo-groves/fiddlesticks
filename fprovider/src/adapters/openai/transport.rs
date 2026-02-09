@@ -196,11 +196,11 @@ impl OpenAiTransport for OpenAiHttpTransport {
                         }
 
                         if let Some(choice) = parsed.choices.first() {
-                            if let Some(delta_content) = &choice.delta.content {
-                                if !delta_content.is_empty() {
-                                    content.push_str(delta_content);
-                                    yield OpenAiStreamChunk::TextDelta(delta_content.clone());
-                                }
+                            if let Some(delta_content) = &choice.delta.content
+                                && !delta_content.is_empty()
+                            {
+                                content.push_str(delta_content);
+                                yield OpenAiStreamChunk::TextDelta(delta_content.clone());
                             }
 
                             if let Some(delta_tool_calls) = &choice.delta.tool_calls {

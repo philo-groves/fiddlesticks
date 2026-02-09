@@ -221,7 +221,7 @@ impl ChatService {
                 self.store
                     .append_messages(&session.id, persisted_messages)
                     .await
-                    .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Storage))?;
+                    .map_err(|err| err.with_phase(ChatErrorPhase::Storage))?;
 
                 return Ok(ChatTurnResult {
                     session_id: session.id,
@@ -449,7 +449,7 @@ impl ChatService {
             .store
             .load_messages(&session.id)
             .await
-            .map_err(|err| ChatError::from(err).with_phase(ChatErrorPhase::Storage))?;
+            .map_err(|err| err.with_phase(ChatErrorPhase::Storage))?;
         let user_message = Message::new(Role::User, user_input);
 
         let mut conversation_messages = Vec::new();

@@ -135,7 +135,7 @@ impl MemoryBackend for FilesystemMemoryBackend {
             let Some(state) = self.load_state(session_id)? else {
                 return Ok(BootstrapState::default());
             };
-            Ok(state.into_bootstrap_state(session_id)?)
+            state.into_bootstrap_state(session_id)
         })
     }
 

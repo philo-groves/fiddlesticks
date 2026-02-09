@@ -22,14 +22,14 @@ pub struct SqliteMemoryBackend {
 impl SqliteMemoryBackend {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, MemoryError> {
         let path = path.as_ref();
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent).map_err(|error| {
-                    MemoryError::storage(format!(
-                        "failed to create sqlite parent directory: {error}"
-                    ))
-                })?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent).map_err(|error| {
+                MemoryError::storage(format!(
+                    "failed to create sqlite parent directory: {error}"
+                ))
+            })?;
         }
 
         let connection = Connection::open(path).map_err(|error| {

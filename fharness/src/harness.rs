@@ -588,10 +588,9 @@ impl Harness {
             .health_checker
             .run(&request.session.id, &init_plan)
             .await
+            && self.run_policy.fail_fast.on_health_check_error
         {
-            if self.run_policy.fail_fast.on_health_check_error {
-                return Err(error);
-            }
+            return Err(error);
         }
 
         if all_required_features_passed(&bootstrap.feature_list) {

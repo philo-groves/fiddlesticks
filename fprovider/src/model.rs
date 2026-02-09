@@ -190,22 +190,22 @@ impl ModelRequest {
             ));
         }
 
-        if let Some(max_tokens) = self.options.max_tokens {
-            if max_tokens == 0 {
-                return Err(ProviderError::invalid_request(
-                    "max_tokens must be greater than zero",
-                ));
-            }
+        if let Some(max_tokens) = self.options.max_tokens
+            && max_tokens == 0
+        {
+            return Err(ProviderError::invalid_request(
+                "max_tokens must be greater than zero",
+            ));
         }
 
-        if let Some(temperature) = self.options.temperature {
-            if !(0.0..=2.0).contains(&temperature) {
-                return Err(ProviderError::new(
-                    ProviderErrorKind::InvalidRequest,
-                    "temperature must be in the inclusive range 0.0..=2.0",
-                    false,
-                ));
-            }
+        if let Some(temperature) = self.options.temperature
+            && !(0.0..=2.0).contains(&temperature)
+        {
+            return Err(ProviderError::new(
+                ProviderErrorKind::InvalidRequest,
+                "temperature must be in the inclusive range 0.0..=2.0",
+                false,
+            ));
         }
 
         Ok(())
