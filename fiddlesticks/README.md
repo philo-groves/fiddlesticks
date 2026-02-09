@@ -2,8 +2,8 @@
 
 `fiddlesticks` is the single-dependency gateway for the Fiddlesticks workspace.
 
-It re-exports the underlying crates and adds curated utilities for common
-runtime wiring and request-building flows.
+It exposes a facade-owned, semver-stable API surface for common runtime wiring,
+provider setup, and request-building flows.
 
 ## Add dependency
 
@@ -21,7 +21,9 @@ fiddlesticks = { path = "../fiddlesticks", features = ["provider-opencode-zen"] 
 
 ## API surface
 
-- Full crate aliases: `fiddlesticks::fprovider`, `fiddlesticks::fchat`, `fiddlesticks::fharness`, etc.
+- Stable namespace modules: `fiddlesticks::chat`, `fiddlesticks::harness`, `fiddlesticks::memory`, `fiddlesticks::provider`, `fiddlesticks::tooling`
+- Dynamic harness builder: `AgentHarnessBuilder`
+- Provider setup utilities: `build_provider_from_api_key`, `build_provider_with_config`, `list_models_with_api_key`
 - Curated top-level exports for common types (`ChatService`, `Harness`, `ModelProvider`, `ToolRegistry`, ...)
 - `prelude` module for ergonomic imports
 - Runtime helpers: `build_runtime*`, `chat_service*`, `in_memory_backend`

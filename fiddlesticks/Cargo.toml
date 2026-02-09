@@ -13,6 +13,7 @@ provider-openai = ["fprovider/provider-openai"]
 provider-opencode-zen = ["fprovider/provider-opencode-zen"]
 provider-anthropic = ["fprovider/provider-anthropic"]
 provider-claude = ["fprovider/provider-claude"]
+unstable-reexports = []
 
 [dependencies]
 fchat = { path = "../fchat" }
@@ -21,6 +22,7 @@ fharness = { path = "../fharness" }
 fmemory = { path = "../fmemory" }
 fprovider = { path = "../fprovider" }
 ftooling = { path = "../ftooling" }
+reqwest = { version = "0.12", default-features = true }
 
 [dev-dependencies]
 tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }

@@ -2,17 +2,17 @@
 
 Fiddlesticks is a Rust workspace for building provider-agnostic chat and agent runtimes.
 
-The core architecture is now in place across focused crates, with `fiddlesticks` as the recommended single dependency for application code.
+The core architecture is spread across focused crates, with `fiddlesticks` as the semver-stable API layer and recommended single dependency for application code.
 
 ## Crates
 
+- fiddlesticks (semver-stable facade API layer over all workspace crates)
 - fcommon (shared primitives)
 - fprovider (model/provider abstraction + adapters)
 - ftooling (tool registration + execution runtime)
 - fchat (chat turn orchestration)
 - fmemory (harness state + transcript persistence)
 - fharness (initializer + task-iteration orchestration)
-- fiddlesticks (facade over all workspace crates)
 
 ## Recommended Dependency
 
@@ -25,9 +25,9 @@ fiddlesticks = { path = "./fiddlesticks", features = ["provider-openai"] }
 
 ## Crates and API Usage
 
-### `fiddlesticks` (Facade)
+### `fiddlesticks` (Semver-stable API layer)
 
-Single entrypoint that re-exports all workspace crates and adds convenience helpers/macros.
+Semver-stable entrypoint with facade-owned namespaces and convenience helpers/macros.
 
 ```rust
 use std::sync::Arc;
@@ -169,6 +169,8 @@ Docs: `fharness/README.md`
 - `provider-openai`
 - `provider-opencode-zen`
 - `provider-anthropic`
+- Prefer stable namespaces: `fiddlesticks::chat`, `fiddlesticks::harness`, `fiddlesticks::memory`,
+`fiddlesticks::provider`, and `fiddlesticks::tooling`.
 
 ## Development
 

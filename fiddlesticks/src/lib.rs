@@ -1,21 +1,16 @@
 //! Unified facade over the Fiddlesticks workspace crates.
 //!
 //! This crate is designed to be the single dependency for most applications.
-//! It re-exports the core fiddlesticks crates and provides convenience utilities
-//! and macros for common setup and request-building flows.
+//! It exposes a curated, facade-owned API surface with stable namespace modules,
+//! runtime/provider helpers, and macros for common setup and request-building flows.
 
 mod macros;
+mod agent;
+mod providers;
 
 pub mod prelude;
 pub mod runtime;
 pub mod util;
-
-pub use fchat;
-pub use fcommon;
-pub use fharness;
-pub use fmemory;
-pub use fprovider;
-pub use ftooling;
 
 pub use fchat::{
     ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource, ChatEvent, ChatEventStream,
@@ -51,10 +46,60 @@ pub use runtime::{
     RuntimeBundle, build_runtime, build_runtime_with, build_runtime_with_memory,
     build_runtime_with_tooling, chat_service, chat_service_with_memory, in_memory_backend,
 };
+pub use agent::{AgentHarnessBuilder, AgentRuntime};
+pub use providers::{
+    ProviderBuildConfig, build_provider_from_api_key, build_provider_with_config,
+    list_models_with_api_key,
+};
 pub use util::{
     assistant_message, parse_provider_id, session, streaming_turn, system_message, tool_message,
     turn, user_message,
 };
+
+pub mod chat {
+    pub use crate::{
+        ChatError, ChatErrorKind, ChatErrorPhase, ChatErrorSource, ChatEvent, ChatEventStream,
+        ChatPolicy, ChatService, ChatServiceBuilder, ChatSession, ChatTurnOptions,
+        ChatTurnRequest, ChatTurnRequestBuilder, ChatTurnResult, ConversationStore,
+        InMemoryConversationStore,
+    };
+}
+
+pub mod harness {
+    pub use crate::{
+        AcceptAllValidator, FailFastPolicy, FeatureSelector, FirstPendingFeatureSelector, Harness,
+        HarnessBuilder, HarnessError, HarnessErrorKind, HarnessPhase, HealthChecker,
+        InitializerRequest, InitializerResult, NoopHealthChecker, OutcomeValidator, RunPolicy,
+        RuntimeRunOutcome, RuntimeRunRequest, TaskIterationRequest, TaskIterationResult,
+    };
+}
+
+pub mod memory {
+    pub use crate::{
+        BootstrapState, FeatureRecord, InMemoryMemoryBackend, MemoryBackend,
+        MemoryConversationStore, MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint,
+        RunStatus, SessionManifest,
+    };
+}
+
+pub mod provider {
+    pub use crate::{
+        BoxedEventStream, BrowserLoginSession, CredentialKind, Message, ModelEventStream,
+        ModelProvider, ModelRequest, ModelRequestBuilder, ModelResponse, NoopOperationHooks,
+        OutputItem, ProviderCredential, ProviderError, ProviderErrorKind, ProviderFuture,
+        ProviderId, ProviderOperationHooks, ProviderRegistry, RetryPolicy, Role, SecretString,
+        SecureCredentialManager, StopReason, StreamEvent, TokenUsage, ToolCall, ToolDefinition,
+        ToolResult, VecEventStream, execute_with_retry,
+    };
+}
+
+pub mod tooling {
+    pub use crate::{
+        DefaultToolRuntime, FunctionTool, NoopToolRuntimeHooks, Tool, ToolError, ToolErrorKind,
+        ToolExecutionContext, ToolExecutionResult, ToolFuture, ToolRegistry, ToolRuntime,
+        ToolRuntimeHooks, parse_json_object, parse_json_value, required_string,
+    };
+}
 
 #[cfg(test)]
 mod tests {
