@@ -1,6 +1,6 @@
 [package]
 name = "fprovider"
-version = "0.9.9"
+version = "0.9.91"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -30,7 +30,7 @@ provider-openai = [
 provider-anthropic = ["provider-openai"]
 
 [dependencies]
-fcommon = { path = "../fcommon", version = "0.9.9" }
+fcommon = { path = "../fcommon", version = "0.9.91" }
 futures-core = "0.3"
 futures-util = { version = "0.3", optional = true }
 async-stream = { version = "0.3", optional = true }
