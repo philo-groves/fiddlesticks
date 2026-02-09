@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     ChatService, Harness, HarnessError, InMemoryMemoryBackend, MemoryBackend,
-    MemoryConversationStore, ModelProvider, ToolRuntime,
+    MemoryConversationStore, ModelProvider, ToolRuntime, create_default_memory_backend,
 };
 
 #[derive(Clone)]
@@ -31,7 +31,8 @@ pub fn chat_service_with_memory(
 }
 
 pub fn build_runtime(provider: Arc<dyn ModelProvider>) -> Result<RuntimeBundle, HarnessError> {
-    build_runtime_with(provider, in_memory_backend(), None)
+    let memory = create_default_memory_backend()?;
+    build_runtime_with(provider, memory, None)
 }
 
 pub fn build_runtime_with_memory(
@@ -45,7 +46,8 @@ pub fn build_runtime_with_tooling(
     provider: Arc<dyn ModelProvider>,
     tool_runtime: Arc<dyn ToolRuntime>,
 ) -> Result<RuntimeBundle, HarnessError> {
-    build_runtime_with(provider, in_memory_backend(), Some(tool_runtime))
+    let memory = create_default_memory_backend()?;
+    build_runtime_with(provider, memory, Some(tool_runtime))
 }
 
 pub fn build_runtime_with(
@@ -76,6 +78,7 @@ pub fn build_runtime_with(
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     use crate::{
         ChatSession, ChatTurnRequest, DefaultToolRuntime, Message, ModelProvider, ModelRequest,
@@ -133,7 +136,15 @@ mod tests {
         let provider: Arc<dyn ModelProvider> = Arc::new(FakeProvider);
         let runtime = build_runtime(provider).expect("runtime should build");
 
-        let session = ChatSession::new("session-1", ProviderId::OpenAi, "gpt-4o-mini");
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock should be after unix epoch")
+            .as_nanos();
+        let session = ChatSession::new(
+            format!("session-{unique}"),
+            ProviderId::OpenAi,
+            "gpt-4o-mini",
+        );
         let request = ChatTurnRequest::new(session.clone(), "hello");
 
         let result = runtime

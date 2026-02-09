@@ -27,8 +27,9 @@ pub use fharness::{
 };
 pub use fmemory::{
     BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
-    InitShellScript, InitStep, MemoryBackend, MemoryConversationStore, MemoryError,
-    MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+    InitShellScript, InitStep, MemoryBackend, MemoryBackendConfig, MemoryConversationStore,
+    MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+    SqliteMemoryBackend, create_default_memory_backend, create_memory_backend,
 };
 pub use fprovider::{
     BoxedEventStream, BrowserLoginSession, CredentialKind, Message, ModelEventStream,
@@ -79,8 +80,9 @@ pub mod harness {
 pub mod memory {
     pub use crate::{
         BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
-        InitShellScript, InitStep, MemoryBackend, MemoryConversationStore, MemoryError,
-        MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+        InitShellScript, InitStep, MemoryBackend, MemoryBackendConfig, MemoryConversationStore,
+        MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+        SqliteMemoryBackend, create_default_memory_backend, create_memory_backend,
     };
 }
 

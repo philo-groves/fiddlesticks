@@ -8,13 +8,17 @@ mod types;
 pub mod prelude {
     pub use crate::{
         BootstrapState, FeatureRecord, InMemoryMemoryBackend, InitCommand, InitPlan, InitShell,
-        InitShellScript, InitStep, MemoryBackend, MemoryConversationStore, MemoryError,
-        MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+        InitShellScript, InitStep, MemoryBackend, MemoryBackendConfig, MemoryConversationStore,
+        MemoryError, MemoryErrorKind, ProgressEntry, RunCheckpoint, RunStatus, SessionManifest,
+        SqliteMemoryBackend, create_default_memory_backend, create_memory_backend,
     };
 }
 
 pub use adapter::MemoryConversationStore;
-pub use backend::{InMemoryMemoryBackend, MemoryBackend};
+pub use backend::{
+    InMemoryMemoryBackend, MemoryBackend, MemoryBackendConfig, SqliteMemoryBackend,
+    create_default_memory_backend, create_memory_backend,
+};
 pub use error::{MemoryError, MemoryErrorKind};
 pub use types::{
     BootstrapState, FeatureRecord, InitCommand, InitPlan, InitShell, InitShellScript, InitStep,
@@ -30,7 +34,9 @@ mod tests {
     use fprovider::{Message, Role};
 
     use crate::types::{FeatureRecord, ProgressEntry, RunCheckpoint, SessionManifest};
-    use crate::{InMemoryMemoryBackend, MemoryBackend, MemoryConversationStore};
+    use crate::{
+        InMemoryMemoryBackend, MemoryBackend, MemoryConversationStore, SqliteMemoryBackend,
+    };
 
     #[tokio::test]
     async fn backend_stores_bootstrap_state_and_transcript() {
@@ -214,5 +220,75 @@ mod tests {
                 .await
                 .expect("lookup should work")
         );
+    }
+
+    #[tokio::test]
+    async fn sqlite_backend_stores_bootstrap_state_and_transcript() {
+        let backend =
+            SqliteMemoryBackend::new_in_memory().expect("sqlite backend should initialize");
+        let session_id = SessionId::from("session-sqlite");
+
+        backend
+            .save_manifest(
+                &session_id,
+                SessionManifest::new(session_id.clone(), "feature/sqlite", "Build sqlite backend"),
+            )
+            .await
+            .expect("manifest should save");
+
+        backend
+            .replace_feature_list(
+                &session_id,
+                vec![FeatureRecord {
+                    id: "f-sqlite-1".to_string(),
+                    category: "functional".to_string(),
+                    description: "SQLite backend persists feature rows".to_string(),
+                    steps: vec!["write feature rows".to_string()],
+                    passes: false,
+                }],
+            )
+            .await
+            .expect("feature list should save");
+
+        backend
+            .append_progress_entry(
+                &session_id,
+                ProgressEntry::new("run-sqlite-1", "SQLite bootstrap created"),
+            )
+            .await
+            .expect("progress should append");
+
+        backend
+            .record_run_checkpoint(&session_id, RunCheckpoint::started("run-sqlite-1"))
+            .await
+            .expect("checkpoint should save");
+
+        backend
+            .append_transcript_messages(
+                &session_id,
+                vec![
+                    Message::new(Role::User, "sqlite hello"),
+                    Message::new(Role::Assistant, "sqlite hi"),
+                ],
+            )
+            .await
+            .expect("transcript should append");
+
+        let bootstrap = backend
+            .load_bootstrap_state(&session_id)
+            .await
+            .expect("bootstrap should load");
+        assert!(bootstrap.manifest.is_some());
+        assert_eq!(bootstrap.feature_list.len(), 1);
+        assert_eq!(bootstrap.recent_progress.len(), 1);
+        assert_eq!(bootstrap.checkpoints.len(), 1);
+
+        let transcript = backend
+            .load_transcript_messages(&session_id)
+            .await
+            .expect("transcript should load");
+        assert_eq!(transcript.len(), 2);
+        assert_eq!(transcript[0].role, Role::User);
+        assert_eq!(transcript[1].role, Role::Assistant);
     }
 }

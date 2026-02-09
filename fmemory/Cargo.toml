@@ -11,6 +11,8 @@ repository = "https://github.com/philogroves/fiddlesticks"
 fchat = { path = "../fchat" }
 fcommon = { path = "../fcommon" }
 fprovider = { path = "../fprovider" }
+rusqlite = { version = "0.33.0", features = ["bundled"] }
+serde_json = "1.0"
 
 [dev-dependencies]
 tokio = { version = "=1.48.0", features = ["macros", "rt-multi-thread"] }

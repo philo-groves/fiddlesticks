@@ -28,7 +28,9 @@ fmemory = { path = "../fmemory" }
 ## Core types
 
 - `MemoryBackend`: async persistence trait
-- `InMemoryMemoryBackend`: default in-crate implementation
+- `SqliteMemoryBackend`: default durable backend implementation
+- `InMemoryMemoryBackend`: ephemeral test-oriented backend implementation
+- `MemoryBackendConfig`: backend selection configuration
 - `MemoryConversationStore`: adapter implementing `fchat::ConversationStore`
 - `SessionManifest`: harness session metadata (+ schema/harness versions)
 - `FeatureRecord`: feature checklist item
@@ -77,6 +79,25 @@ async fn seed_backend(backend: &dyn MemoryBackend) -> Result<(), MemoryError> {
     Ok(())
 }
 ```
+
+## Backend selection
+
+`fmemory` supports configurable backend construction:
+
+```rust
+use fmemory::{MemoryBackendConfig, create_default_memory_backend, create_memory_backend};
+
+let sqlite_default = create_default_memory_backend()?;
+let in_memory = create_memory_backend(MemoryBackendConfig::InMemory)?;
+let sqlite_custom = create_memory_backend(MemoryBackendConfig::Sqlite {
+    path: "./state/fmemory.sqlite3".into(),
+})?;
+
+let _ = (sqlite_default, in_memory, sqlite_custom);
+# Ok::<(), fmemory::MemoryError>(())
+```
+
+Default backend path is `~/.fiddlesticks/fmemory.sqlite3` (or `%USERPROFILE%/.fiddlesticks/fmemory.sqlite3` on Windows). Override it with `FMEMORY_SQLITE_PATH`.
 
 ## `fchat` integration adapter
 
