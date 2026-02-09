@@ -37,6 +37,13 @@ ftooling = { path = "../ftooling" }
 - `SafeToolHooks<H>`
 - `SafeHarnessHooks<H>`
 
+## Module layout
+
+- `tracing_hooks`: `TracingObservabilityHooks` implementations for provider/tool/harness hooks
+- `metrics_hooks`: `MetricsObservabilityHooks` implementations for provider/tool/harness hooks
+- `safe_hooks`: panic-isolating wrappers (`SafeProviderHooks`, `SafeToolHooks`, `SafeHarnessHooks`)
+- `lib`: crate exports and prelude
+
 ## Hook coverage
 
 - Provider: attempt start, retry scheduled, success, failure
@@ -90,3 +97,11 @@ let _ = (chat, harness);
 
 - `fobserve` intentionally emits generic metric names with labels so apps can map dashboards/alerts per deployment.
 - `tracing`/`metrics` output requires app-level subscriber/recorder setup.
+
+## Testing
+
+`fobserve` includes unit tests that:
+
+- smoke-test all tracing and metrics callbacks
+- verify safe wrappers delegate when inner hooks succeed
+- verify safe wrappers swallow panics from inner hooks
