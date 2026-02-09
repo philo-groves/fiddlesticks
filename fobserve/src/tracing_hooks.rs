@@ -1,3 +1,15 @@
+//! Tracing-based observability hooks for provider, tool runtime, and harness phases.
+//!
+//! ```rust
+//! use fobserve::TracingObservabilityHooks;
+//! use fharness::HarnessRuntimeHooks;
+//!
+//! fn accepts_harness_hooks(_hooks: &dyn HarnessRuntimeHooks) {}
+//!
+//! let hooks = TracingObservabilityHooks;
+//! accepts_harness_hooks(&hooks);
+//! ```
+
 use std::time::Duration;
 
 use fharness::{HarnessError, HarnessPhase, HarnessRuntimeHooks};

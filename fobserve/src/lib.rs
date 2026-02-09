@@ -1,4 +1,11 @@
 //! Production-friendly observability hooks for provider, tool, and harness phases.
+//!
+//! ```rust
+//! use fobserve::{MetricsObservabilityHooks, SafeProviderHooks, TracingObservabilityHooks};
+//!
+//! let _provider_hooks = SafeProviderHooks::new(TracingObservabilityHooks);
+//! let _metrics = MetricsObservabilityHooks;
+//! ```
 
 mod metrics_hooks;
 mod safe_hooks;

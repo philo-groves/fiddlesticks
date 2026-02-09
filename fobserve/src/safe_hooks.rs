@@ -1,4 +1,16 @@
-use std::panic::{AssertUnwindSafe, catch_unwind};
+//! Panic-safe wrappers that isolate runtime hooks from observer panics.
+//!
+//! ```rust
+//! use fobserve::{SafeToolHooks, TracingObservabilityHooks};
+//! use ftooling::ToolRuntimeHooks;
+//!
+//! fn accepts_tool_hooks(_hooks: &dyn ToolRuntimeHooks) {}
+//!
+//! let hooks = SafeToolHooks::new(TracingObservabilityHooks);
+//! accepts_tool_hooks(&hooks);
+//! ```
+
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::time::Duration;
 
 use fharness::{HarnessError, HarnessPhase, HarnessRuntimeHooks};

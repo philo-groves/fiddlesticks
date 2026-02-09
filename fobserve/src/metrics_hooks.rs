@@ -1,3 +1,15 @@
+//! Metrics-based observability hooks for provider, tool runtime, and harness phases.
+//!
+//! ```rust
+//! use fobserve::MetricsObservabilityHooks;
+//! use fprovider::ProviderOperationHooks;
+//!
+//! fn accepts_provider_hooks(_hooks: &dyn ProviderOperationHooks) {}
+//!
+//! let hooks = MetricsObservabilityHooks;
+//! accepts_provider_hooks(&hooks);
+//! ```
+
 use std::time::Duration;
 
 use fharness::{HarnessError, HarnessPhase, HarnessRuntimeHooks};

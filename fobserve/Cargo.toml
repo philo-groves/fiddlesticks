@@ -14,3 +14,6 @@ fprovider = { path = "../fprovider" }
 ftooling = { path = "../ftooling" }
 metrics = "0.24"
 tracing = "0.1"
+
+[lib]
+doctest = true
