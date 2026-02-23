@@ -7,11 +7,16 @@ authors = ["Philo Groves <philogroves@gmail.com>"]
 description = "Provider library for the fiddlesticks agent harness framework"
 license = "MIT"
 repository = "https://github.com/philogroves/fiddlesticks"
-keywords = ["ai", "llm", "providers", "openai", "anthropic"]
+keywords = ["ai", "llm", "providers", "openai", "ollama"]
 categories = ["asynchronous", "api-bindings"]
 
 [features]
-default = ["provider-opencode-zen", "provider-openai", "provider-anthropic"]
+default = [
+    "provider-opencode-zen",
+    "provider-openai",
+    "provider-anthropic",
+    "provider-ollama",
+]
 provider-opencode-zen = [
     "provider-openai",
     "dep:reqwest",
@@ -28,6 +33,7 @@ provider-openai = [
     "dep:async-stream",
 ]
 provider-anthropic = ["provider-openai"]
+provider-ollama = ["provider-openai"]
 
 [dependencies]
 fcommon = { path = "../fcommon", version = "1.0.0" }

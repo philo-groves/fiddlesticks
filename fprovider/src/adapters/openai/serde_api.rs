@@ -10,7 +10,16 @@ use super::types::{
     OpenAiRole, OpenAiTool, OpenAiToolCall, OpenAiUsage,
 };
 
-pub(crate) fn build_api_request(request: OpenAiRequest) -> Result<OpenAiApiRequest, ProviderError> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OpenAiTokenParameter {
+    MaxTokens,
+    MaxCompletionTokens,
+}
+
+pub(crate) fn build_api_request_with_token_parameter(
+    request: OpenAiRequest,
+    token_parameter: OpenAiTokenParameter,
+) -> Result<OpenAiApiRequest, ProviderError> {
     let messages = request
         .messages
         .into_iter()
@@ -40,7 +49,12 @@ pub(crate) fn build_api_request(request: OpenAiRequest) -> Result<OpenAiApiReque
         messages,
         tools,
         temperature: request.temperature,
-        max_tokens: request.max_tokens,
+        max_tokens: (token_parameter == OpenAiTokenParameter::MaxTokens)
+            .then_some(request.max_tokens)
+            .flatten(),
+        max_completion_tokens: (token_parameter == OpenAiTokenParameter::MaxCompletionTokens)
+            .then_some(request.max_tokens)
+            .flatten(),
         stream: request.stream,
     })
 }
@@ -80,6 +94,8 @@ pub(crate) struct OpenAiApiRequest {
     pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_completion_tokens: Option<u32>,
     pub stream: bool,
 }
 
@@ -223,7 +239,8 @@ impl TryFrom<OpenAiApiResponse> for OpenAiResponse {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct OpenAiApiStreamResponse {
-    pub model: String,
+    #[serde(default)]
+    pub model: Option<String>,
     pub choices: Vec<OpenAiApiStreamChoice>,
 }
 

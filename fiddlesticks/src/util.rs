@@ -52,6 +52,7 @@ pub fn parse_provider_id(value: &str) -> Option<ProviderId> {
         "opencode-zen" | "opencode_zen" | "opencode" | "zen" => Some(ProviderId::OpenCodeZen),
         "openai" => Some(ProviderId::OpenAi),
         "anthropic" | "claude" => Some(ProviderId::Anthropic),
+        "ollama" | "local" => Some(ProviderId::Ollama),
         _ => None,
     }
 }
@@ -68,6 +69,8 @@ mod tests {
         assert_eq!(parse_provider_id("Zen"), Some(ProviderId::OpenCodeZen));
         assert_eq!(parse_provider_id("anthropic"), Some(ProviderId::Anthropic));
         assert_eq!(parse_provider_id("claude"), Some(ProviderId::Anthropic));
+        assert_eq!(parse_provider_id("ollama"), Some(ProviderId::Ollama));
+        assert_eq!(parse_provider_id("local"), Some(ProviderId::Ollama));
         assert_eq!(parse_provider_id("unknown"), None);
     }
 

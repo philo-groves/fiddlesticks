@@ -26,6 +26,7 @@ pub enum ProviderId {
     OpenCodeZen,
     OpenAi,
     Anthropic,
+    Ollama,
 }
 
 impl Display for ProviderId {
@@ -34,6 +35,7 @@ impl Display for ProviderId {
             Self::OpenCodeZen => "opencode-zen",
             Self::OpenAi => "openai",
             Self::Anthropic => "anthropic",
+            Self::Ollama => "ollama",
         };
 
         f.write_str(id)

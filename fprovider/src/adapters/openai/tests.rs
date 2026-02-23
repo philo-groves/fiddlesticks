@@ -11,7 +11,9 @@ use crate::{
 };
 
 use super::provider::OpenAiProvider;
-use super::serde_api::parse_finish_reason;
+use super::serde_api::{
+    OpenAiTokenParameter, build_api_request_with_token_parameter, parse_finish_reason,
+};
 use super::transport::{OpenAiChunkStream, OpenAiTransport};
 use super::types::{OpenAiAuth, OpenAiFinishReason, OpenAiRequest, OpenAiResponse, OpenAiRole};
 
@@ -73,4 +75,36 @@ fn parse_finish_reason_maps_expected_values() {
         OpenAiFinishReason::Other
     );
     assert_eq!(parse_finish_reason(None), OpenAiFinishReason::Other);
+}
+
+#[test]
+fn build_api_request_switches_token_parameter_name() {
+    let openai_request = OpenAiRequest {
+        model: "gpt-5.2".to_string(),
+        messages: vec![super::types::OpenAiMessage {
+            role: OpenAiRole::User,
+            content: "hi".to_string(),
+            tool_call_id: None,
+        }],
+        tools: Vec::new(),
+        temperature: Some(0.0),
+        max_tokens: Some(256),
+        stream: false,
+    };
+
+    let legacy = build_api_request_with_token_parameter(
+        openai_request.clone(),
+        OpenAiTokenParameter::MaxTokens,
+    )
+    .expect("request should build");
+    assert_eq!(legacy.max_tokens, Some(256));
+    assert_eq!(legacy.max_completion_tokens, None);
+
+    let modern = build_api_request_with_token_parameter(
+        openai_request,
+        OpenAiTokenParameter::MaxCompletionTokens,
+    )
+    .expect("request should build");
+    assert_eq!(modern.max_tokens, None);
+    assert_eq!(modern.max_completion_tokens, Some(256));
 }

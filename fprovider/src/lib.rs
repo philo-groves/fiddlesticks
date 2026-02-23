@@ -98,6 +98,7 @@ mod tests {
         assert_eq!(ProviderId::OpenCodeZen.to_string(), "opencode-zen");
         assert_eq!(ProviderId::OpenAi.to_string(), "openai");
         assert_eq!(ProviderId::Anthropic.to_string(), "anthropic");
+        assert_eq!(ProviderId::Ollama.to_string(), "ollama");
     }
 
     #[test]
