@@ -7,7 +7,7 @@ The core architecture is spread across focused crates, with `fiddlesticks` as th
 ## Features
 
 - Unified facade API through `fiddlesticks` with semver-stable namespaces for chat, harness, memory, provider, and tooling.
-- Provider-agnostic model layer with OpenAI, OpenCode Zen, and Anthropic feature-gated adapters.
+- Provider-agnostic model layer with OpenAI, OpenCode Zen, Anthropic, and Ollama feature-gated adapters.
 - Turn-based chat orchestration with streaming and non-streaming execution paths.
 - Tool registration/execution runtime with structured tool call and tool result flow.
 - Session memory and transcript persistence with in-memory and pluggable backend support.
@@ -185,6 +185,7 @@ Docs: `fobserve/README.md`
 - `provider-openai`
 - `provider-opencode-zen`
 - `provider-anthropic`
+- `provider-ollama`
 - Prefer stable namespaces: `fiddlesticks::chat`, `fiddlesticks::harness`, `fiddlesticks::memory`,
 `fiddlesticks::provider`, and `fiddlesticks::tooling`.
 

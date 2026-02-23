@@ -1,6 +1,6 @@
 [package]
 name = "fiddlesticks"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -15,6 +15,7 @@ default = ["provider-openai"]
 provider-openai = ["fprovider/provider-openai"]
 provider-opencode-zen = ["fprovider/provider-opencode-zen"]
 provider-anthropic = ["fprovider/provider-anthropic"]
+provider-ollama = ["fprovider/provider-ollama"]
 
 [dependencies]
 fchat = { path = "../fchat", version = "1.0.0" }

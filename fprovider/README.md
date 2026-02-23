@@ -33,6 +33,7 @@ The currently supported providers are:
 - **OpenCode Zen**
 - **OpenAI**
 - **Anthropic**
+- **Ollama**
 
 Each provider implements the same core traits so they can be swapped without changing agent or chat logic.
 
@@ -226,3 +227,4 @@ let _ = value;
 - `provider-openai`: OpenAI adapter and HTTP transport
 - `provider-anthropic`: Anthropic adapter over OpenAI-compatible transport
 - `provider-opencode-zen`: OpenCode Zen adapter over OpenAI-compatible transport
+- `provider-ollama`: Ollama adapter over OpenAI-compatible transport

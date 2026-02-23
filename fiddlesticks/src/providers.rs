@@ -50,7 +50,8 @@ pub fn build_provider_from_api_key(
 
 /// Builds a provider from a strict [`ProviderBuildConfig`].
 ///
-/// Empty API keys are rejected before any HTTP calls are attempted.
+/// Empty API keys are rejected before any HTTP calls are attempted for
+/// providers that require API key auth.
 ///
 /// ```rust
 /// use fiddlesticks::{ProviderBuildConfig, ProviderErrorKind, ProviderId, build_provider_with_config};
@@ -63,7 +64,7 @@ pub fn build_provider_with_config(
     config: ProviderBuildConfig,
 ) -> Result<Arc<dyn ModelProvider>, ProviderError> {
     let api_key = config.api_key.expose().trim().to_string();
-    if api_key.is_empty() {
+    if api_key.is_empty() && config.provider_id != ProviderId::Ollama {
         return Err(ProviderError::authentication(
             "provider API key must not be empty",
         ));
@@ -79,6 +80,7 @@ pub fn build_provider_with_config(
         ProviderId::OpenAi => build_openai_provider(credentials, api_key, http),
         ProviderId::Anthropic => build_anthropic_provider(credentials, api_key, http),
         ProviderId::OpenCodeZen => build_zen_provider(credentials, api_key, http),
+        ProviderId::Ollama => build_ollama_provider(credentials, http),
     }
 }
 
@@ -89,8 +91,9 @@ pub async fn list_models_with_api_key(
     let api_key = api_key.into();
     match provider_id {
         ProviderId::OpenCodeZen => list_zen_models(api_key).await,
+        ProviderId::Ollama => list_ollama_models().await,
         ProviderId::OpenAi | ProviderId::Anthropic => Err(ProviderError::invalid_request(
-            "model listing is currently supported for OpenCode Zen only",
+            "model listing is currently supported for OpenCode Zen and Ollama only",
         )),
     }
 }
@@ -171,6 +174,28 @@ fn build_zen_provider(
     ))
 }
 
+#[cfg(feature = "provider-ollama")]
+fn build_ollama_provider(
+    _credentials: Arc<SecureCredentialManager>,
+    http: Client,
+) -> Result<Arc<dyn ModelProvider>, ProviderError> {
+    let transport =
+        Arc::new(fprovider::adapters::ollama::OllamaProvider::default_http_transport(http));
+    Ok(Arc::new(fprovider::adapters::ollama::OllamaProvider::new(
+        transport,
+    )))
+}
+
+#[cfg(not(feature = "provider-ollama"))]
+fn build_ollama_provider(
+    _credentials: Arc<SecureCredentialManager>,
+    _http: Client,
+) -> Result<Arc<dyn ModelProvider>, ProviderError> {
+    Err(ProviderError::invalid_request(
+        "provider-ollama feature is not enabled on fiddlesticks",
+    ))
+}
+
 #[cfg(feature = "provider-opencode-zen")]
 async fn list_zen_models(api_key: String) -> Result<Vec<String>, ProviderError> {
     fprovider::adapters::opencode_zen::list_zen_models_with_api_key(api_key).await
@@ -180,5 +205,17 @@ async fn list_zen_models(api_key: String) -> Result<Vec<String>, ProviderError> 
 async fn list_zen_models(_api_key: String) -> Result<Vec<String>, ProviderError> {
     Err(ProviderError::invalid_request(
         "provider-opencode-zen feature is not enabled on fiddlesticks",
+    ))
+}
+
+#[cfg(feature = "provider-ollama")]
+async fn list_ollama_models() -> Result<Vec<String>, ProviderError> {
+    fprovider::adapters::ollama::list_ollama_models().await
+}
+
+#[cfg(not(feature = "provider-ollama"))]
+async fn list_ollama_models() -> Result<Vec<String>, ProviderError> {
+    Err(ProviderError::invalid_request(
+        "provider-ollama feature is not enabled on fiddlesticks",
     ))
 }
