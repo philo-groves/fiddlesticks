@@ -128,14 +128,13 @@ let provider = registry
 
 ```rust
 use std::sync::Arc;
-use reqwest::Client;
 use fprovider::{ProviderRegistry, SecureCredentialManager};
-use fprovider::adapters::openai::{OpenAiHttpTransport, OpenAiProvider};
+use fprovider::adapters::openai::{OpenAiProvider, OpenAiResponsesWebSocketTransport};
 
 let credentials = Arc::new(SecureCredentialManager::new());
 credentials.set_openai_api_key("sk-...")?;
 
-let transport = Arc::new(OpenAiHttpTransport::new(Client::new()));
+let transport = Arc::new(OpenAiResponsesWebSocketTransport::new());
 let openai = OpenAiProvider::new(credentials, transport);
 
 let mut registry = ProviderRegistry::new();
@@ -174,6 +173,8 @@ while let Some(event) = events.next().await {
 ### 7) OpenAI auth policy
 
 When `provider-openai` is enabled, `OpenAiProvider` only uses API key credentials configured via `SecureCredentialManager::set_openai_api_key`.
+
+The OpenAI adapter now uses the Responses API over WebSocket mode by default and sends `store: false` for response creation.
 
 ### 8) Credential lifecycle and auditing
 

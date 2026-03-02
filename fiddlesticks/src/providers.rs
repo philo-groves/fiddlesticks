@@ -102,10 +102,10 @@ pub async fn list_models_with_api_key(
 fn build_openai_provider(
     credentials: Arc<SecureCredentialManager>,
     api_key: String,
-    http: Client,
+    _http: Client,
 ) -> Result<Arc<dyn ModelProvider>, ProviderError> {
     credentials.set_openai_api_key(api_key)?;
-    let transport = Arc::new(fprovider::adapters::openai::OpenAiHttpTransport::new(http));
+    let transport = Arc::new(fprovider::adapters::openai::OpenAiResponsesWebSocketTransport::new());
     Ok(Arc::new(fprovider::adapters::openai::OpenAiProvider::new(
         credentials,
         transport,
