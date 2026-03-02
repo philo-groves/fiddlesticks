@@ -2,12 +2,14 @@
 
 mod auth;
 mod provider;
+mod responses_ws;
 mod serde_api;
 mod tests;
 mod transport;
 mod types;
 
 pub use provider::OpenAiProvider;
+pub use responses_ws::OpenAiResponsesWebSocketTransport;
 pub use transport::{OpenAiChunkStream, OpenAiHttpTransport, OpenAiTransport};
 pub use types::{
     OpenAiAssistantMessage, OpenAiAuth, OpenAiFinishReason, OpenAiMessage, OpenAiRequest,
