@@ -229,10 +229,8 @@ impl OpenAiTransport for OpenAiHttpTransport {
                         let parsed: OpenAiApiStreamResponse = serde_json::from_str(payload)
                             .map_err(|err| ProviderError::transport(err.to_string()))?;
 
-                        if model.is_none() {
-                            if let Some(stream_model) = parsed.model.clone() {
-                                model = Some(stream_model);
-                            }
+                        if model.is_none() && let Some(stream_model) = parsed.model.clone() {
+                            model = Some(stream_model);
                         }
 
                         if let Some(choice) = parsed.choices.first() {
