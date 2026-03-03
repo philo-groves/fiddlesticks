@@ -18,12 +18,12 @@ provider-anthropic = ["fprovider/provider-anthropic"]
 provider-ollama = ["fprovider/provider-ollama"]
 
 [dependencies]
-fchat = { path = "../fchat", version = "1.0.0" }
-fcommon = { path = "../fcommon", version = "1.0.0" }
-fharness = { path = "../fharness", version = "1.0.0" }
-fmemory = { path = "../fmemory", version = "1.0.0" }
-fprovider = { path = "../fprovider", version = "1.0.0" }
-ftooling = { path = "../ftooling", version = "1.0.0" }
+fchat = { path = "../fchat", version = "3.0.0" }
+fcommon = { path = "../fcommon", version = "3.0.0" }
+fharness = { path = "../fharness", version = "3.0.0" }
+fmemory = { path = "../fmemory", version = "3.0.0" }
+fprovider = { path = "../fprovider", version = "3.0.0" }
+ftooling = { path = "../ftooling", version = "3.0.0" }
 reqwest = { version = "0.12", default-features = true }
 
 [dev-dependencies]

@@ -1,6 +1,6 @@
 [package]
 name = "fobserve"
-version = "1.0.0"
+version = "3.0.0"
 edition = "2024"
 rust-version = "1.93"
 authors = ["Philo Groves <philogroves@gmail.com>"]
@@ -11,10 +11,10 @@ keywords = ["ai", "observability", "metrics", "tracing", "hooks"]
 categories = ["asynchronous", "development-tools::debugging"]
 
 [dependencies]
-fcommon = { path = "../fcommon", version = "1.0.0" }
-fharness = { path = "../fharness", version = "1.0.0" }
-fprovider = { path = "../fprovider", version = "1.0.0" }
-ftooling = { path = "../ftooling", version = "1.0.0" }
+fcommon = { path = "../fcommon", version = "3.0.0" }
+fharness = { path = "../fharness", version = "3.0.0" }
+fprovider = { path = "../fprovider", version = "3.0.0" }
+ftooling = { path = "../ftooling", version = "3.0.0" }
 metrics = "0.24"
 tracing = "0.1"
 
