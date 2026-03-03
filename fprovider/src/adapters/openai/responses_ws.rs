@@ -82,7 +82,9 @@ impl OpenAiResponsesWebSocketTransport {
             OpenAiAuth::ApiKey(key) => {
                 let header_value = HeaderValue::from_str(&format!("Bearer {}", key.expose()))
                     .map_err(|err| ProviderError::transport(err.to_string()))?;
-                request.headers_mut().insert(header::AUTHORIZATION, header_value);
+                request
+                    .headers_mut()
+                    .insert(header::AUTHORIZATION, header_value);
             }
             OpenAiAuth::BrowserSession(session) => {
                 let header_value = HeaderValue::from_str(&format!(

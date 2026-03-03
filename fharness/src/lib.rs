@@ -646,8 +646,8 @@ mod tests {
         assert!(result.validated);
         assert_eq!(result.selected_feature_id.as_deref(), Some("feature-1"));
 
-        let calls = health.calls.lock().expect("calls lock");
-        assert_eq!(*calls, 1);
+        let calls = *health.calls.lock().expect("calls lock");
+        assert_eq!(calls, 1);
 
         let state = memory
             .load_bootstrap_state(&SessionId::from("session-coding"))
